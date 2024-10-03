@@ -30,6 +30,61 @@ public class Grammar {
                     new Grammar("timing", "^(\\d*) (\\d*)",
                             new String[]{"start", "stop"},
                             "%d %d")
+            },
+            'c', new Grammar[]{
+                    new Grammar(
+                            "connection",
+                            "^IN IP(\\d) (\\S*)",
+                            new String[]{"version", "ip"},
+                            "IN IP%d %s"
+                    )
+            },
+            'm',  new Grammar[]{
+                    new Grammar(
+                            "",
+                            "^(\\w*) (\\d*) ([\\w/]*)(?: (.*))?",
+                            new String[]{"type", "port", "protocol", "payloads"},
+                            "IN IP%d %s"
+                    )
+            },
+            'a',new Grammar[]{
+                    new Grammar(
+                            "",
+                            "^rtpmap:(\\d*) ([\\w\\-.]*)(?:\\s*\\/(\\d*)(?:\\s*\\/(\\S*))?)?",
+                            "rtp",
+                            new String[]{"payload", "codec", "rate", "encoding"},
+                            "IN IP%d %s"//TODO: fix
+                    ),
+                    new Grammar(
+                            "",
+                            "^fmtp:(\\d*) ([\\S| ]*)",
+                            "fmtp",
+                            new String[]{"payload", "config",},
+                            "fmtp:%d %s"//TODO: fix
+                    ),
+                    new Grammar(
+                            "",
+                            "^rtcp:(\\d*)(?: (\\S*) IP(\\d) (\\S*))?",
+                            "rtcp",
+                            new String[]{"port", "netType", "ipVer", "address"},
+                            "fmtp:%d %s"//TODO: fix
+                    ),
+                    new Grammar(
+                            "",
+                            "^rtcp-fb:(\\*|\\d*) ([\\w-_]*)(?: ([\\w-_]*))?",
+                            "rtcpFb",
+                            new String[]{"payload", "type", "subtype"},
+                            "fmtp:%d %s"//TODO: fix
+                    ),
+                    new Grammar(
+                            "",
+                            "^extmap:(\\d+)(?:\\/(\\w+))?(?: (urn:ietf:params:rtp-hdrext:encrypt))? (\\S*)(?: (\\S*))?",
+                            "ext",
+                            new String[]{"value", "direction", "encrypt-uri", "uri", "config"},
+                            "fmtp:%d %s"//TODO: fix
+                    )
+
+
             }
     );
 

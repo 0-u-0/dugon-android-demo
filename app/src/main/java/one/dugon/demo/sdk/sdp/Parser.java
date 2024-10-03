@@ -45,11 +45,15 @@ public class Parser {
                     if (matcher.find()) {
                         parseRegex(g, matcher ,location);
                         break;
+                    }else{
+                        Log.d(TAG,"Match failed:"+content);
                     }
                 }
             }
 
         }
+
+        session.add("media",media);
 
         Log.d(TAG,"result");
         Log.d(TAG,session.toString());
@@ -82,6 +86,7 @@ public class Parser {
     }
 
     public static void attachProperties(Matcher matcher, JsonObject location, String[] names, String name) {
+        Log.d(TAG, "attachProperties:"+name);
         if (!name.isEmpty() && names.length == 0) {
             addProperties(location, name, matcher.group());
         } else {
