@@ -5,9 +5,18 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import org.webrtc.CandidatePairChangeEvent;
+import org.webrtc.DataChannel;
 import org.webrtc.EglBase;
+import org.webrtc.IceCandidate;
+import org.webrtc.IceCandidateErrorEvent;
+import org.webrtc.MediaConstraints;
+import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.RtpReceiver;
+import org.webrtc.SdpObserver;
+import org.webrtc.SessionDescription;
 import org.webrtc.SoftwareVideoDecoderFactory;
 import org.webrtc.SoftwareVideoEncoderFactory;
 import org.webrtc.SurfaceViewRenderer;
@@ -21,9 +30,12 @@ import org.webrtc.audio.JavaAudioDeviceModule;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import one.dugon.demo.sdk.sdp.Parser;
 
 public class Dugon {
 
@@ -89,6 +101,73 @@ public class Dugon {
             Log.d(TAG, "Peer connection factory created.");
             adm.release();
         });
+    }
+
+    public static Integer getRtpCapabilities(){
+        CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
+
+        Callable<Integer> task = () -> {
+            Log.d(TAG, "getRtpCapabilities");
+
+            List<PeerConnection.IceServer> iceServers = new ArrayList<>();
+
+            PeerConnection.RTCConfiguration rtcConfig =
+                    new PeerConnection.RTCConfiguration(iceServers);
+            // TCP candidates are only useful when connecting to a server that supports
+            // ICE-TCP.
+            rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
+            rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
+            rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
+            rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
+            // Use ECDSA encryption.
+            rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
+            rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
+
+            assert factory != null;
+            PCObserverForRtpCaps pcObserver = new PCObserverForRtpCaps();
+            PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, pcObserver);
+
+            MediaConstraints sdpMediaConstraints = new MediaConstraints();
+
+            sdpMediaConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
+            sdpMediaConstraints.mandatory.add(
+                    new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
+
+            SDPObserverForRtpCaps sdpObserver = new SDPObserverForRtpCaps(){
+                @Override
+                public void onCreateSuccess(SessionDescription desc) {
+//                super.onCreateSuccess(desc);
+                    Log.d("w","onCreateSuccess");
+                    futureDesc.complete(desc);
+
+                }
+
+                @Override
+                public void onCreateFailure(String error) {
+//                super.onCreateFailure(error);
+                    futureDesc.completeExceptionally(new Exception(error));
+
+                }
+
+            };
+            assert peerConnection != null;
+            peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
+
+            return 1;
+        };
+
+        executor.submit(task);
+
+        try {
+            SessionDescription sdp = futureDesc.get();
+
+            Parser.parse(sdp.description);
+//            Log.d("w",sdp.description);
+        } catch (Exception e) {
+//            e.printStackTrace();
+        }
+        return null;
     }
 
     public static LocalVideoSource createVideoSource() {
@@ -230,4 +309,66 @@ public class Dugon {
 
     }
 
+    static class PCObserverForRtpCaps implements PeerConnection.Observer {
+        @Override
+        public void onIceCandidate(final IceCandidate candidate) {}
+
+        @Override
+        public void onIceCandidateError(final IceCandidateErrorEvent event) {}
+
+        @Override
+        public void onIceCandidatesRemoved(final IceCandidate[] candidates) {}
+
+        @Override
+        public void onSignalingChange(PeerConnection.SignalingState newState) {}
+
+        @Override
+        public void onIceConnectionChange(final PeerConnection.IceConnectionState newState) {}
+
+        @Override
+        public void onConnectionChange(final PeerConnection.PeerConnectionState newState) {}
+
+        @Override
+        public void onIceGatheringChange(PeerConnection.IceGatheringState newState) {}
+
+        @Override
+        public void onIceConnectionReceivingChange(boolean receiving) {}
+
+        @Override
+        public void onSelectedCandidatePairChanged(CandidatePairChangeEvent event) {}
+
+        @Override
+        public void onAddStream(final MediaStream stream) {}
+
+        @Override
+        public void onRemoveStream(final MediaStream stream) {}
+
+        @Override
+        public void onDataChannel(final DataChannel dc) {}
+
+        @Override
+        public void onRenegotiationNeeded() {}
+
+        @Override
+        public void onAddTrack(final RtpReceiver receiver, final MediaStream[] mediaStreams) {}
+
+        @Override
+        public void onRemoveTrack(final RtpReceiver receiver) {}
+    }
+
+    static class SDPObserverForRtpCaps implements SdpObserver {
+        @Override
+        public void onCreateSuccess(final SessionDescription desc) {
+        }
+
+        @Override
+        public void onCreateFailure(final String error) {
+        }
+
+        @Override
+        public void onSetSuccess() {}
+
+        @Override
+        public void onSetFailure(final String error) {}
+    }
 }

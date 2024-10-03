@@ -24,6 +24,7 @@ import java.util.concurrent.Executors;
 
 import one.dugon.demo.sdk.Dugon;
 import one.dugon.demo.sdk.LocalVideoSource;
+import one.dugon.demo.sdk.ProtooSocket;
 import one.dugon.demo.sdk.Session;
 import one.dugon.demo.sdk.Transport;
 
@@ -36,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private Transport transport;
     private SurfaceViewRenderer fullscreenRenderer;
     private LocalVideoSource localVideoSource;
+    private ProtooSocket socket;
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
@@ -61,16 +63,20 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Dugon.initialize(getApplication());
+        Dugon.getRtpCapabilities();
+//
+//        localVideoSource = Dugon.createVideoSource();
+//        fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
+//        fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+//
+//        Dugon.initView(fullscreenRenderer);
+//        localVideoSource.play(fullscreenRenderer);
 
-        localVideoSource = Dugon.createVideoSource();
-        fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
-        fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
-
-        Dugon.initView(fullscreenRenderer);
-        localVideoSource.play(fullscreenRenderer);
-
-
-
+//        socket = new ProtooSocket();
+//        executor.execute(()->{
+//            socket.connect("ws://192.168.1.104:4443",Map.of("roomId","vm7khrqj","peerId","abc"));
+//
+//        });
     }
 
     @Override
