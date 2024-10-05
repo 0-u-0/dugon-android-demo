@@ -12,7 +12,7 @@ import java.util.regex.Matcher;
 public class Parser {
     private static final String TAG = "Parser";
 
-    public static void parse(String sdp) {
+    public static JsonObject parse(String sdp) {
         JsonObject session = new JsonObject();
         JsonObject location = session;
         JsonArray media = new JsonArray();
@@ -57,6 +57,7 @@ public class Parser {
 
         Log.d(TAG,"result");
         Log.d(TAG,session.toString());
+        return session;
     }
 
     public static void parseRegex(Grammar g, Matcher matcher,JsonObject location) {

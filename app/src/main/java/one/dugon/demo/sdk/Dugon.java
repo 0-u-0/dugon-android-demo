@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import one.dugon.demo.sdk.sdp.Parser;
+import one.dugon.demo.sdk.sdp.Writer;
 
 public class Dugon {
 
@@ -162,10 +163,12 @@ public class Dugon {
         try {
             SessionDescription sdp = futureDesc.get();
 
-            Parser.parse(sdp.description);
-//            Log.d("w",sdp.description);
+            var sdpSession = Parser.parse(sdp.description);
+            var sdpStr = Writer.write(sdpSession);
+
+            Log.d("W",sdpStr);
         } catch (Exception e) {
-//            e.printStackTrace();
+            e.printStackTrace();
         }
         return null;
     }
