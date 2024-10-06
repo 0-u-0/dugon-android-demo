@@ -65,9 +65,9 @@ public class Grammar {
                             "^rtpmap:(\\d*) ([\\w\\-.]*)(?:\\s*\\/(\\d*)(?:\\s*\\/(\\S*))?)?",
                             "rtp",
                             new String[]{"payload", "codec", "rate", "encoding" },
-                            x -> x.getAsJsonObject().has("encoding")
+                            x -> jsonHasNotNull(x, "encoding")
                                     ? "rtpmap:%d %s/%s/%s"
-                                    : x.getAsJsonObject().has("rate")
+                                    : jsonHasNotNull(x, "rate")
                                     ? "rtpmap:%d %s/%s"
                                     : "rtpmap:%d %s"
                     ),
@@ -76,14 +76,14 @@ public class Grammar {
                             "^fmtp:(\\d*) ([\\S| ]*)",
                             "fmtp",
                             new String[]{"payload", "config",},
-                            x-> "fmtp:%d %s"
+                            x -> "fmtp:%d %s"
                     ),
                     new Grammar(
                             "",
                             "^rtcp:(\\d*)(?: (\\S*) IP(\\d) (\\S*))?",
                             "rtcp",
                             new String[]{"port", "netType", "ipVer", "address" },
-                            x-> (x.getAsJsonObject().has("address") && !x.getAsJsonObject().get("addresss").getAsString().isEmpty())
+                            x -> jsonHasNotEmpty(x,"address")
                                     ? "rtcp:%d %s IP%d %s"
                                     : "rtcp:%d"
                     ),
@@ -92,17 +92,86 @@ public class Grammar {
                             "^rtcp-fb:(\\*|\\d*) ([\\w-_]*)(?: ([\\w-_]*))?",
                             "rtcpFb",
                             new String[]{"payload", "type", "subtype" },
-                            x->"fmtp:%d %s"//TODO: fix
+                            x -> jsonHasNotNull(x, "subtype")
+                                    ? "rtcp-fb:%s %s %s"
+                                    : "rtcp-fb:%s %s"
                     ),
                     new Grammar(
                             "",
                             "^extmap:(\\d+)(?:\\/(\\w+))?(?: (urn:ietf:params:rtp-hdrext:encrypt))? (\\S*)(?: (\\S*))?",
                             "ext",
                             new String[]{"value", "direction", "encrypt-uri", "uri", "config" },
-                            x->"fmtp:%d %s"//TODO: fix
-                    )
-
-
+                            x -> (
+                                    "extmap:%d" +
+                                            (jsonHasNotNull(x, "direction") ? "/%s" : "%v") +
+                                            (jsonHasNotNull(x, "encrypt-uri") ? " %s" : "%v") +
+                                            " %s" +
+                                            (jsonHasNotNull(x, "config") ? " %s" : "")
+                            )
+                    ),
+                    new Grammar(
+                            "extmapAllowMixed",
+                            "^(extmap-allow-mixed)"
+                    ),
+                    new Grammar(
+                            "setup",
+                            "^setup:(\\w*)",
+                            x-> "setup:%s"
+                    ),
+                    new Grammar(
+                            "mid",
+                            "^mid:([^\\s]*)",
+                            x-> "mid:%s"
+                    ),
+                    new Grammar(
+                            "direction",
+                            "^(sendrecv|recvonly|sendonly|inactive)"
+                    ),
+                    new Grammar(
+                            "icelite",
+                            "^(ice-lite)"
+                    ),
+                    new Grammar(
+                            "iceUfrag",
+                            "^ice-ufrag:(\\S*)",
+                            x-> "ice-ufrag:%s"
+                    ),
+                    new Grammar(
+                            "icePwd",
+                            "^ice-pwd:(\\S*)",
+                            x-> "ice-pwd:%s"
+                    ),
+                    new Grammar(
+                            "iceOptions",
+                            "^ice-options:(\\S*)",
+                            x-> "ice-options:%s"
+                    ),
+                    new Grammar(
+                            "fingerprint",
+                            "^fingerprint:(\\S*) (\\S*)",
+                            new String[]{"type", "hash" },
+                            x-> "fingerprint:%s %s"
+                    ),
+                    new Grammar(
+                            "msidSemantic",
+                            "^msid-semantic:\\s?(\\w*) (\\S*)",
+                            new String[]{"semantic", "token" },
+                            x-> jsonHasNotEmpty(x,"semantic") ? "msid-semantic: %s %s":"msid-semantic: %v%s"
+                    ),
+                    new Grammar(
+                            "groups",
+                            "^group:(\\w*) (.*)",
+                            new String[]{"type", "mids" },
+                            x-> "group:%s %s"
+                    ),
+                    new Grammar(
+                            "rtcpMux",
+                            "^(rtcp-mux)"
+                    ),
+                    new Grammar(
+                            "rtcpRsize",
+                            "^(rtcp-rsize)"
+                    ),
             }
     );
 
@@ -116,6 +185,10 @@ public class Grammar {
 
     public Grammar(String name, String regex, String[] names) {
         this(name, regex, "", names, x -> "%s");
+    }
+
+    public Grammar(String name, String regex, Function<JsonElement, String> format) {
+        this(name, regex, "", new String[]{}, format);
     }
 
     public Grammar(String name, String regex, String[] names, Function<JsonElement, String> format) {
@@ -143,5 +216,16 @@ public class Grammar {
 
     public boolean needsBlank() {
         return !name.isEmpty() && names.length > 0;
+    }
+
+    public static boolean jsonHasNotNull(JsonElement e, String field) {
+        var object = e.getAsJsonObject();
+        return object.has(field) && !object.get(field).isJsonNull();
+    }
+
+
+    public static boolean jsonHasNotEmpty(JsonElement e, String field) {
+        var object = e.getAsJsonObject();
+        return object.has(field) && object.get(field).isJsonPrimitive() && !object.get(field).getAsString().isEmpty() ;
     }
 }

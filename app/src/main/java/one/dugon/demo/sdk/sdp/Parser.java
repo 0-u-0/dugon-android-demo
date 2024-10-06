@@ -89,7 +89,7 @@ public class Parser {
     public static void attachProperties(Matcher matcher, JsonObject location, String[] names, String name) {
         Log.d(TAG, "attachProperties:"+name);
         if (!name.isEmpty() && names.length == 0) {
-            addProperties(location, name, matcher.group());
+            addProperties(location, name, matcher.group(1));
         } else {
             for (int i = 0; i < names.length; i += 1) {
                 addProperties(location, names[i], matcher.group(i+1));

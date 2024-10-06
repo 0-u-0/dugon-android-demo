@@ -3,6 +3,7 @@ package one.dugon.demo.sdk.sdp;
 
 import android.util.Log;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -43,13 +44,25 @@ public class Writer {
             for (var c : defaultInnerOrder) {
                 Log.d(TAG,"ccc:"+c);
                 for (var g : Grammar.data.get(c)) {
-                    if (session.has(g.name)) {
+                    if (m.getAsJsonObject().has(g.name)) {
                         sdp.add(makeLine(c, g, m.getAsJsonObject()));
-                    }else if(session.has(g.push)) {
-                        JsonObject pushObj = m.getAsJsonObject().getAsJsonObject(g.push);
-                        for (Map.Entry<String, JsonElement> entry : pushObj.entrySet()) {
-                            sdp.add(makeLine(c, g, entry.getValue().getAsJsonObject()));
+                    }else if(m.getAsJsonObject().has(g.push)) {
+                        Log.d(TAG,"push:"+g.push);
+
+                        var pushElement = m.getAsJsonObject().get(g.push);
+                        if(pushElement.isJsonArray()){
+                            JsonArray pushArr = pushElement.getAsJsonArray();
+                            for (JsonElement element : pushArr) {
+                                JsonObject obj = element.getAsJsonObject();
+                                sdp.add(makeLine(c, g, obj));
+                            }
+                        }else{
+                            JsonObject pushObj = pushElement.getAsJsonObject();
+                            for (Map.Entry<String, JsonElement> entry : pushObj.entrySet()) {
+                                sdp.add(makeLine(c, g, entry.getValue().getAsJsonObject()));
+                            }
                         }
+
                     }
                 }
             }
@@ -102,17 +115,68 @@ public class Writer {
             }
         }
         Log.d(TAG,strFormat);
-        return String.format(strFormat, formatParameters.toArray());
+        return customFormat(strFormat, formatParameters);
+    }
+
+    private static String customFormat(String format, List<Object> args) {
+        StringBuilder result = new StringBuilder();
+        int argIndex = 0; // Parameter index
+
+        // Traverse each character in the format string
+        for (int i = 0; i < format.length(); i++) {
+            char currentChar = format.charAt(i);
+
+            // When encountering '%', check the next character to decide how to handle it
+            if (currentChar == '%' && i + 1 < format.length()) {
+                char nextChar = format.charAt(i + 1);
+
+                if (nextChar == 's') {
+                    // %s for string parameters
+                    if (argIndex < args.size()) {
+                        Object arg = args.get(argIndex);
+                        result.append(arg != null ? arg.toString() : "");  // If the argument is null, replace it with an empty string
+                    }
+                    argIndex++; // Move to the next argument
+                    i++; // Skip the placeholder
+                } else if (nextChar == 'd') {
+                    // %d for integer parameters
+                    if (argIndex < args.size()) {
+                        Object arg = args.get(argIndex);
+                        if (arg instanceof Integer) {
+                            result.append(arg);  // Output the integer directly
+                        } else {
+                            result.append(0);  // If not an integer, output 0 or handle it as default
+                        }
+                    }
+                    argIndex++; // Move to the next argument
+                    i++; // Skip the placeholder
+                } else if (nextChar == 'v') {
+                    // %v is just a placeholder, no output
+                    argIndex++; // Skip the argument without output
+                    i++; // Skip the placeholder
+                } else {
+                    // Handle other characters, such as when '%' is followed by something other than 's', 'd', or 'v'
+                    result.append(currentChar);
+                }
+            } else {
+                // Non-placeholder character, directly add it to the result
+                result.append(currentChar);
+            }
+        }
+
+        return result.toString();
     }
 
     private static Object jsonToReal(JsonElement e){
+        if(e.isJsonNull()) {
+            return null;
+        }
         var p = e.getAsJsonPrimitive();
         if(p.isNumber()){
             return p.getAsInt();
         }else if(p.isString()){
             return p.getAsString();
         }
-
         return 0;
     }
 }

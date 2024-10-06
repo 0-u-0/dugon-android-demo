@@ -167,6 +167,8 @@ public class Dugon {
             var sdpStr = Writer.write(sdpSession);
 
             Log.d("W",sdpStr);
+//            Log.d("W",sdp.description);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
