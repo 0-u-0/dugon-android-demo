@@ -5,6 +5,8 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.google.gson.JsonObject;
+
 import org.webrtc.CandidatePairChangeEvent;
 import org.webrtc.DataChannel;
 import org.webrtc.EglBase;
@@ -36,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import one.dugon.demo.sdk.sdp.Parser;
+import one.dugon.demo.sdk.sdp.Utils;
 import one.dugon.demo.sdk.sdp.Writer;
 
 public class Dugon {
@@ -104,7 +107,7 @@ public class Dugon {
         });
     }
 
-    public static Integer getRtpCapabilities(){
+    public static JsonObject getRtpCapabilities(){
         CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
 
         Callable<Integer> task = () -> {
@@ -164,10 +167,11 @@ public class Dugon {
             SessionDescription sdp = futureDesc.get();
 
             var sdpSession = Parser.parse(sdp.description);
-            var sdpStr = Writer.write(sdpSession);
 
-            Log.d("W",sdpStr);
+            var rtpCapabilities = Utils.extractRtpCapabilities(sdpSession);
+            Log.d("W",rtpCapabilities.toString());
 //            Log.d("W",sdp.description);
+            return rtpCapabilities;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -375,5 +379,12 @@ public class Dugon {
 
         @Override
         public void onSetFailure(final String error) {}
+    }
+
+    // for mediasoup
+    public static void load(JsonObject routerRtpCapabilities){
+        var local = getRtpCapabilities();
+        var extendedRtpCapabilities = Utils.getExtendedRtpCapabilities(local,routerRtpCapabilities);
+        Log.d(TAG,extendedRtpCapabilities.toString());
     }
 }
