@@ -1,5 +1,7 @@
 package one.dugon.demo.sdk.sdp;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +54,15 @@ public class H264ProfileLevelId {
 
         public int getValue() {
             return value;
+        }
+
+        public static Level fromValue(int value) {
+            for (Level level : Level.values()) {
+                if (level.getValue() == value) {
+                    return level;
+                }
+            }
+            throw new IllegalArgumentException("Unknown value: " + value);
         }
     }
 
@@ -125,7 +136,8 @@ public class H264ProfileLevelId {
             return null;
         }
 
-        Level levelIdc = Level.values()[profileLevelIdNumeric & 0xFF];
+
+        Level levelIdc = Level.fromValue(profileLevelIdNumeric & 0xFF);
         int profileIop = (profileLevelIdNumeric >> 8) & 0xFF;
         int profileIdc = (profileLevelIdNumeric >> 16) & 0xFF;
 

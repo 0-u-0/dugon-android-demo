@@ -3,6 +3,7 @@ package one.dugon.demo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.Manifest;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -13,12 +14,15 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.gson.JsonObject;
+
 import org.webrtc.EglBase;
 import org.webrtc.RendererCommon;
 import org.webrtc.SurfaceViewRenderer;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -31,7 +35,7 @@ import one.dugon.demo.sdk.Transport;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static final String TAG = "MainActivity";
 
     private Session session;
     private Transport transport;
@@ -62,8 +66,8 @@ public class MainActivity extends AppCompatActivity {
 //            openCamera();
         }
 
-        Dugon.initialize(getApplication());
-        Dugon.getRtpCapabilities();
+//        Dugon.initialize(getApplication());
+//        Dugon.getRtpCapabilities();
 //
 //        localVideoSource = Dugon.createVideoSource();
 //        fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
@@ -71,12 +75,7 @@ public class MainActivity extends AppCompatActivity {
 //
 //        Dugon.initView(fullscreenRenderer);
 //        localVideoSource.play(fullscreenRenderer);
-
-//        socket = new ProtooSocket();
-//        executor.execute(()->{
-//            socket.connect("ws://192.168.1.104:4443",Map.of("roomId","vm7khrqj","peerId","abc"));
-//
-//        });
+        soupTest();
     }
 
     @Override
@@ -90,6 +89,23 @@ public class MainActivity extends AppCompatActivity {
                 // 用户拒绝了权限请求
                 Toast.makeText(this, "Camera permission is required to use this feature", Toast.LENGTH_SHORT).show();
             }
+        }
+    }
+
+    public void soupTest(){
+        socket = new ProtooSocket();
+        try {
+            Dugon.initialize(getApplication());
+
+            var f = socket.connect("ws://192.168.82.107:4443",Map.of("roomId","vm7khrqj","peerId","abc"));
+            f.get();
+            var r1 = socket.request("getRouterRtpCapabilities");
+            JsonObject rr1 = r1.get();
+            Dugon.load(rr1);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

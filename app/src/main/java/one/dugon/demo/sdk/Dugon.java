@@ -384,6 +384,7 @@ public class Dugon {
     // for mediasoup
     public static void load(JsonObject routerRtpCapabilities){
         var local = getRtpCapabilities();
+        Log.d(TAG,"getRtpCapabilities ok");
         var extendedRtpCapabilities = Utils.getExtendedRtpCapabilities(local,routerRtpCapabilities);
         Log.d(TAG,extendedRtpCapabilities.toString());
     }
