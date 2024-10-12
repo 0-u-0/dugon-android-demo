@@ -204,6 +204,58 @@ public class Utils {
     }
 
     //--------------------------
+    public static JsonObject extractDtlsParameters(JsonObject sdpObject) {
+        JsonObject mediaSection = null;
+        JsonObject fingerprint = new JsonObject();
+        String role = null;
+
+        // Find the first media section with "iceUfrag" and non-zero port
+        for (JsonElement mediaElement : sdpObject.getAsJsonArray("media")) {
+            JsonObject media = mediaElement.getAsJsonObject();
+            if (media.has("iceUfrag") && media.get("port").getAsInt() != 0) {
+                mediaSection = media;
+                break;
+            }
+        }
+
+        if (mediaSection != null) {
+            if (mediaSection.has("fingerprint")) {
+                fingerprint = mediaSection.getAsJsonObject("fingerprint");
+            } else if (sdpObject.has("fingerprint")) {
+                fingerprint = sdpObject.getAsJsonObject("fingerprint");
+            }
+
+            if (mediaSection.has("setup")) {
+                String setup = mediaSection.get("setup").getAsString();
+                switch (setup) {
+                    case "active":
+                        role = "client";
+                        break;
+                    case "passive":
+                        role = "server";
+                        break;
+                    case "actpass":
+                        role = "auto";
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Invalid setup value: " + setup);
+                }
+            }
+        }
+
+        JsonObject dtlsParameters = new JsonObject();
+        dtlsParameters.addProperty("role", role);
+
+        JsonArray fingerprintsArray = new JsonArray();
+        JsonObject fingerprintObject = new JsonObject();
+        fingerprintObject.add("algorithm", fingerprint.get("type"));
+        fingerprintObject.add("value", fingerprint.get("hash"));
+        fingerprintsArray.add(fingerprintObject);
+
+        dtlsParameters.add("fingerprints", fingerprintsArray);
+
+        return dtlsParameters;
+    }
 
     public static String getCodecName(JsonObject codec) {
         Pattern mimeTypePattern = Pattern.compile("^(audio|video)/", Pattern.CASE_INSENSITIVE);

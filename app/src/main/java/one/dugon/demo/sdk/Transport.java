@@ -55,6 +55,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import one.dugon.demo.sdk.sdp.Parser;
 import one.dugon.demo.sdk.sdp.RemoteSdp;
@@ -63,12 +65,12 @@ import one.dugon.demo.sdk.sdp.Writer;
 
 public class Transport implements PeerConnection.Observer {
 
-//    public static final String VIDEO_TRACK_ID = "ARDAMSv0";
+    //    public static final String VIDEO_TRACK_ID = "ARDAMSv0";
 //
 //    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 //
     private static final String TAG = "Transport";
-//
+    //
 //    private final Context appContext;
 //    private final EglBase rootEglBase;
 //
@@ -89,6 +91,9 @@ public class Transport implements PeerConnection.Observer {
 //
 //    private final PCObserver pcObserver = new PCObserver();
 //    private final SDPObserver sdpObserver = new SDPObserver();
+    private boolean ready = false;
+    public Consumer<JsonObject> onConnect;
+    public Function<JsonObject,String> onProduce;
 
     @Nullable
     private PeerConnection pc;
@@ -97,6 +102,7 @@ public class Transport implements PeerConnection.Observer {
 
     public JsonObject sendingRtpParametersByKind;
     public JsonObject sendingRemoteRtpParametersByKind;
+    public String id ;
 
     public Transport(String id,
                      JsonObject iceParameters,
@@ -104,6 +110,7 @@ public class Transport implements PeerConnection.Observer {
                      JsonObject dtlsParameters,
                      JsonObject sendingRtpParametersByKind,
                      JsonObject sendingRemoteRtpParametersByKind) {
+        this.id = id;
         this.sendingRtpParametersByKind = sendingRtpParametersByKind.deepCopy();
         this.sendingRemoteRtpParametersByKind = sendingRemoteRtpParametersByKind.deepCopy();
         remoteSdp = new RemoteSdp(iceParameters, iceCandidates, dtlsParameters, null);
@@ -114,7 +121,7 @@ public class Transport implements PeerConnection.Observer {
     }
 
     //
-    public void send(MediaStreamTrack track, List<RtpParameters.Encoding> encodings){
+    public void send(MediaStreamTrack track, List<RtpParameters.Encoding> encodings) {
         var sendingRtpParameters = sendingRtpParametersByKind.getAsJsonObject(track.kind()).deepCopy();
         var sendingRemoteRtpParameters = sendingRemoteRtpParametersByKind.getAsJsonObject(track.kind()).deepCopy();
 //        reduceCodecs
@@ -125,7 +132,7 @@ public class Transport implements PeerConnection.Observer {
 
         CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
 
-        pc.createOffer(new Dugon.SDPObserverForRtpCaps(){
+        pc.createOffer(new Dugon.SDPObserverForRtpCaps() {
             @Override
             public void onCreateSuccess(SessionDescription desc) {
                 futureDesc.complete(desc);
@@ -135,15 +142,15 @@ public class Transport implements PeerConnection.Observer {
             public void onCreateFailure(String error) {
                 futureDesc.completeExceptionally(new Exception(error));
             }
-        },sdpMediaConstraints);
+        }, sdpMediaConstraints);
 
         try {
             var sdp = futureDesc.get();
-            Log.d(TAG,sdp.description);
+            Log.d(TAG, sdp.description);
 
             CompletableFuture<Void> futureDesc2 = new CompletableFuture<>();
 
-            pc.setLocalDescription(new Dugon.SDPObserverForRtpCaps(){
+            pc.setLocalDescription(new Dugon.SDPObserverForRtpCaps() {
                 @Override
                 public void onSetSuccess() {
                     futureDesc2.complete(null);
@@ -153,13 +160,13 @@ public class Transport implements PeerConnection.Observer {
                 public void onSetFailure(String error) {
                     futureDesc2.completeExceptionally(new Exception(error));
                 }
-            },sdp);
+            }, sdp);
 
             futureDesc2.get();
             var localId = transceiver.getMid();
-            Log.d(TAG,"localId:"+localId);
+            Log.d(TAG, "localId:" + localId);
 
-            sendingRtpParameters.addProperty("mid",localId);
+            sendingRtpParameters.addProperty("mid", localId);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -167,24 +174,80 @@ public class Transport implements PeerConnection.Observer {
         }
         var localSdp = pc.getLocalDescription();
         var localSdpObj = Parser.parse(localSdp.description);
+
+        if(!ready){
+            SetupTransport("", localSdpObj);
+        }
+
 //        var localSdpStr = Writer.write(localSdpObj);
 //        Log.d(TAG,localSdpStr);
 //        Log.d(TAG,localSdpObj.get("media").getAsJsonArray().get(0).getAsJsonObject().get("ssrcs").toString());
 
         var offerMediaObject = localSdpObj.getAsJsonArray("media").get(mediaSectionIdx.idx).getAsJsonObject();
 
-        sendingRtpParameters.getAsJsonObject("rtcp").addProperty("cname",Utils.getCname(offerMediaObject));
+        sendingRtpParameters.getAsJsonObject("rtcp").addProperty("cname", Utils.getCname(offerMediaObject));
 
-        sendingRtpParameters.add("encodings",Utils.getRtpEncodings(offerMediaObject));
+        sendingRtpParameters.add("encodings", Utils.getRtpEncodings(offerMediaObject));
 
 //        Log.d(TAG,"codec:"+sendingRemoteRtpParameters.getAsJsonArray("codecs").toString());
         // TODO: 2024/10/11 fix mid
-        remoteSdp.send(offerMediaObject,"",sendingRtpParameters,sendingRemoteRtpParameters,null);
+        remoteSdp.send(offerMediaObject, "", sendingRtpParameters, sendingRemoteRtpParameters, null);
 
         var remoteSdpStr = remoteSdp.getSdp();
-        Log.d(TAG,remoteSdpStr);
+        Log.d(TAG, remoteSdpStr);
+
+        CompletableFuture<Void> futureSetRemote = new CompletableFuture<>();
+
+        pc.setRemoteDescription(new Dugon.SDPObserverForRtpCaps(){
+            @Override
+            public void onSetSuccess() {
+                futureSetRemote.complete(null);
+            }
+
+            @Override
+            public void onSetFailure(String error) {
+                futureSetRemote.completeExceptionally(new Exception(error));
+            }
+        },new SessionDescription(SessionDescription.Type.ANSWER,remoteSdpStr));
+
+        try {
+            futureSetRemote.get();
+
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        var produceData = new JsonObject();
+        produceData.addProperty("kind",track.kind());
+        produceData.add("rtpParameters",sendingRtpParameters);
+        var  producerId = onProduce.apply(produceData);
+        Log.d(TAG,"pid:"+producerId);
     }
 
+
+    public void SetupTransport(String localDtlsRole, JsonObject localSdpObject) {
+
+
+        // Get our local DTLS parameters.
+        var dtlsParameters = Utils.extractDtlsParameters(localSdpObject);
+        dtlsParameters.addProperty("role","client");
+        onConnect.accept(dtlsParameters);
+        // Set our DTLS role.
+//        dtlsParameters["role"] = localDtlsRole;
+
+        // Update the remote DTLS role in the SDP.
+//        var remoteDtlsRole = localDtlsRole.equals("client") ? "server" : "client";
+//        this->remoteSdp->UpdateDtlsRole(remoteDtlsRole);
+        remoteSdp.updateDtlsRole("server");
+
+        // May throw.
+//        this->privateListener->OnConnect(dtlsParameters);
+        ready = true;
+    }
+
+    ;
 
 
     @Override
@@ -194,7 +257,7 @@ public class Transport implements PeerConnection.Observer {
 
     @Override
     public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-
+        Log.d(TAG,"iceState:"+iceConnectionState.name());
     }
 
     @Override

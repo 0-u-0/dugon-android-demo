@@ -53,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
+
+    private static Transport sender;
     // TODO: 2024/10/8 remove
     private String sctpCapabilities = "{\n" +
             "            \"numStreams\":\n" +
@@ -123,7 +125,8 @@ public class MainActivity extends AppCompatActivity {
 
         executor.execute(() -> {
             try {
-                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+                var f = socket.connect("ws://192.168.83.118:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+//                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
                 f.get();
                 var r1 = socket.request("getRouterRtpCapabilities");
                 JsonObject rr1 = r1.get();
@@ -162,9 +165,41 @@ public class MainActivity extends AppCompatActivity {
                 JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
                 JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
 
-                var sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+                sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
                 List<RtpParameters.Encoding> encodings = new ArrayList<>();
 
+                sender.onConnect = (JsonObject dtls)->{
+                    Log.d(TAG,"dtls:"+dtls.toString());
+                    var connectData = new JsonObject();
+                    connectData.addProperty("transportId",sendId);
+                    connectData.add("dtlsParameters",dtls);
+                    var r4 = socket.request("connectWebRtcTransport", connectData);
+                    try {
+                        JsonObject rr4 = r4.get();
+
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                };
+
+                sender.onProduce = (JsonObject pData)->{
+                    pData.addProperty("transportId",sendId);
+                    var r4 = socket.request("produce", pData);
+                    try {
+                        JsonObject rr4 = r4.get();
+                        return rr4.get("id").getAsString();
+
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        return "";
+                    }
+                };
                 sender.send(localVideoSource.track, encodings);
 
             } catch (ExecutionException e) {
