@@ -5,6 +5,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import org.webrtc.CandidatePairChangeEvent;
@@ -107,7 +108,10 @@ public class Dugon {
         });
     }
 
-    public static JsonObject getRtpCapabilities(){
+    public static JsonObject rtpCapabilities;
+    public static JsonObject extendedRtpCapabilities;
+
+    public static JsonObject getRtpCapabilities() {
         CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
 
         Callable<Integer> task = () -> {
@@ -138,11 +142,11 @@ public class Dugon {
             sdpMediaConstraints.mandatory.add(
                     new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
 
-            SDPObserverForRtpCaps sdpObserver = new SDPObserverForRtpCaps(){
+            SDPObserverForRtpCaps sdpObserver = new SDPObserverForRtpCaps() {
                 @Override
                 public void onCreateSuccess(SessionDescription desc) {
 //                super.onCreateSuccess(desc);
-                    Log.d("w","onCreateSuccess");
+                    Log.d("w", "onCreateSuccess");
                     futureDesc.complete(desc);
 
                 }
@@ -167,9 +171,9 @@ public class Dugon {
             SessionDescription sdp = futureDesc.get();
 
             var sdpSession = Parser.parse(sdp.description);
-
+//            var sdpStr = Writer.write(sdpSession);
             var rtpCapabilities = Utils.extractRtpCapabilities(sdpSession);
-            Log.d("W",rtpCapabilities.toString());
+            Log.d("W", rtpCapabilities.toString());
 //            Log.d("W",sdp.description);
             return rtpCapabilities;
 
@@ -289,11 +293,11 @@ public class Dugon {
                 .createAudioDeviceModule();
     }
 
-    public static void initView(SurfaceViewRenderer renderer){
+    public static void initView(SurfaceViewRenderer renderer) {
         renderer.init(rootEglBase.getEglBaseContext(), null);
     }
 
-    public static void initTransport(Transport transport){
+    public static void initTransport(Transport transport) {
 
         executor.execute(() -> {
             List<PeerConnection.IceServer> iceServers = new ArrayList<>();
@@ -320,49 +324,64 @@ public class Dugon {
 
     static class PCObserverForRtpCaps implements PeerConnection.Observer {
         @Override
-        public void onIceCandidate(final IceCandidate candidate) {}
+        public void onIceCandidate(final IceCandidate candidate) {
+        }
 
         @Override
-        public void onIceCandidateError(final IceCandidateErrorEvent event) {}
+        public void onIceCandidateError(final IceCandidateErrorEvent event) {
+        }
 
         @Override
-        public void onIceCandidatesRemoved(final IceCandidate[] candidates) {}
+        public void onIceCandidatesRemoved(final IceCandidate[] candidates) {
+        }
 
         @Override
-        public void onSignalingChange(PeerConnection.SignalingState newState) {}
+        public void onSignalingChange(PeerConnection.SignalingState newState) {
+        }
 
         @Override
-        public void onIceConnectionChange(final PeerConnection.IceConnectionState newState) {}
+        public void onIceConnectionChange(final PeerConnection.IceConnectionState newState) {
+        }
 
         @Override
-        public void onConnectionChange(final PeerConnection.PeerConnectionState newState) {}
+        public void onConnectionChange(final PeerConnection.PeerConnectionState newState) {
+        }
 
         @Override
-        public void onIceGatheringChange(PeerConnection.IceGatheringState newState) {}
+        public void onIceGatheringChange(PeerConnection.IceGatheringState newState) {
+        }
 
         @Override
-        public void onIceConnectionReceivingChange(boolean receiving) {}
+        public void onIceConnectionReceivingChange(boolean receiving) {
+        }
 
         @Override
-        public void onSelectedCandidatePairChanged(CandidatePairChangeEvent event) {}
+        public void onSelectedCandidatePairChanged(CandidatePairChangeEvent event) {
+        }
 
         @Override
-        public void onAddStream(final MediaStream stream) {}
+        public void onAddStream(final MediaStream stream) {
+        }
 
         @Override
-        public void onRemoveStream(final MediaStream stream) {}
+        public void onRemoveStream(final MediaStream stream) {
+        }
 
         @Override
-        public void onDataChannel(final DataChannel dc) {}
+        public void onDataChannel(final DataChannel dc) {
+        }
 
         @Override
-        public void onRenegotiationNeeded() {}
+        public void onRenegotiationNeeded() {
+        }
 
         @Override
-        public void onAddTrack(final RtpReceiver receiver, final MediaStream[] mediaStreams) {}
+        public void onAddTrack(final RtpReceiver receiver, final MediaStream[] mediaStreams) {
+        }
 
         @Override
-        public void onRemoveTrack(final RtpReceiver receiver) {}
+        public void onRemoveTrack(final RtpReceiver receiver) {
+        }
     }
 
     static class SDPObserverForRtpCaps implements SdpObserver {
@@ -375,17 +394,51 @@ public class Dugon {
         }
 
         @Override
-        public void onSetSuccess() {}
+        public void onSetSuccess() {
+        }
 
         @Override
-        public void onSetFailure(final String error) {}
+        public void onSetFailure(final String error) {
+        }
     }
 
     // for mediasoup
-    public static void load(JsonObject routerRtpCapabilities){
+    public static void load(JsonObject routerRtpCapabilities) {
         var local = getRtpCapabilities();
-        Log.d(TAG,"getRtpCapabilities ok");
-        var extendedRtpCapabilities = Utils.getExtendedRtpCapabilities(local,routerRtpCapabilities);
-        Log.d(TAG,extendedRtpCapabilities.toString());
+        Log.d(TAG, "getRtpCapabilities ok");
+        extendedRtpCapabilities = Utils.getExtendedRtpCapabilities(local, routerRtpCapabilities);
+        Log.d(TAG, extendedRtpCapabilities.toString());
+        rtpCapabilities = Utils.getRecvRtpCapabilities(extendedRtpCapabilities);
+    }
+
+    public static Transport createSendTransport(
+            String id,
+            JsonObject iceParameters,
+            JsonArray iceCandidates,
+            JsonObject dtlsParameters
+    ) {
+        JsonObject audioSendingRtpParameters = Utils.getSendingRtpParameters("audio", extendedRtpCapabilities);
+        JsonObject videoSendingRtpParameters = Utils.getSendingRtpParameters("video", extendedRtpCapabilities);
+        JsonObject sendingRtpParametersByKind = new JsonObject();
+        sendingRtpParametersByKind.add("audio", audioSendingRtpParameters);
+        sendingRtpParametersByKind.add("video", videoSendingRtpParameters);
+
+
+        JsonObject audioSendingRemoteRtpParameters = Utils.getSendingRemoteRtpParameters("audio", extendedRtpCapabilities);
+        JsonObject videoSendingRemoteRtpParameters = Utils.getSendingRemoteRtpParameters("video", extendedRtpCapabilities);
+        JsonObject sendingRemoteRtpParametersByKind = new JsonObject();
+        sendingRemoteRtpParametersByKind.add("audio", audioSendingRemoteRtpParameters);
+        sendingRemoteRtpParametersByKind.add("video", videoSendingRemoteRtpParameters);
+
+        var t = new Transport(id, iceParameters, iceCandidates, dtlsParameters, sendingRtpParametersByKind, sendingRemoteRtpParametersByKind);
+        //
+        List<PeerConnection.IceServer> iceServers = new ArrayList<>();
+
+        PeerConnection.RTCConfiguration rtcConfig =
+                new PeerConnection.RTCConfiguration(iceServers);
+
+        PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, t);
+        t.start(peerConnection);
+        return t;
     }
 }

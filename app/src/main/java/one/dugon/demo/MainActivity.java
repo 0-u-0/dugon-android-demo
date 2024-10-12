@@ -14,12 +14,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
+import org.json.JSONArray;
 import org.webrtc.EglBase;
 import org.webrtc.RendererCommon;
+import org.webrtc.RtpParameters;
 import org.webrtc.SurfaceViewRenderer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
@@ -43,7 +49,18 @@ public class MainActivity extends AppCompatActivity {
     private LocalVideoSource localVideoSource;
     private ProtooSocket socket;
 
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
+
+    // TODO: 2024/10/8 remove
+    private String sctpCapabilities = "{\n" +
+            "            \"numStreams\":\n" +
+            "            {\n" +
+            "                \"OS\": 1024,\n" +
+            "                \"MIS\": 1024\n" +
+            "            }\n" +
+            "        }";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +92,15 @@ public class MainActivity extends AppCompatActivity {
 //
 //        Dugon.initView(fullscreenRenderer);
 //        localVideoSource.play(fullscreenRenderer);
+        Dugon.initialize(getApplication());
+        //
+        localVideoSource = Dugon.createVideoSource();
+        fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
+        fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+
+        Dugon.initView(fullscreenRenderer);
+        localVideoSource.play(fullscreenRenderer);
+
         soupTest();
     }
 
@@ -92,20 +118,62 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void soupTest(){
+    public void soupTest() {
         socket = new ProtooSocket();
-        try {
-            Dugon.initialize(getApplication());
 
-            var f = socket.connect("ws://192.168.82.107:4443",Map.of("roomId","vm7khrqj","peerId","abc"));
-            f.get();
-            var r1 = socket.request("getRouterRtpCapabilities");
-            JsonObject rr1 = r1.get();
-            Dugon.load(rr1);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        executor.execute(() -> {
+            try {
+                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+                f.get();
+                var r1 = socket.request("getRouterRtpCapabilities");
+                JsonObject rr1 = r1.get();
+
+                //-----
+                Dugon.load(rr1);
+
+                JsonObject joinData = new JsonObject();
+                JsonObject rtpCapabilitiesJson = Dugon.rtpCapabilities;
+                JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
+                JsonObject device = new JsonObject();
+                device.addProperty("flag", "chrome");
+                device.addProperty("name", "Chrome");
+                device.addProperty("version", "129.0.0.0");
+
+                joinData.add("device", device);
+                joinData.add("rtpCapabilities", rtpCapabilitiesJson);
+                joinData.add("sctpCapabilities", sctpCapabilitiesJson);
+                joinData.addProperty("displayName", "gg");
+
+                var r2 = socket.request("join", joinData);
+
+                //
+
+                //-------------------
+                JsonObject createData = new JsonObject();
+                createData.addProperty("consuming", false);
+                createData.addProperty("forceTcp", false);
+                createData.addProperty("producing", true);
+
+                var r3 = socket.request("createWebRtcTransport", createData);
+                JsonObject rr3 = r3.get();
+                Log.d(TAG, rr3.toString());
+                String sendId = rr3.get("id").getAsString();
+                JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
+                JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
+                JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
+
+                var sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+                List<RtpParameters.Encoding> encodings = new ArrayList<>();
+
+                sender.send(localVideoSource.track, encodings);
+
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+
+        });
     }
 }

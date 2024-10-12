@@ -62,6 +62,28 @@ public class Grammar {
             'a', new Grammar[]{
                     new Grammar(
                             "",
+                            "^candidate:(\\S*) (\\d*) (\\S*) (\\d*) (\\S*) (\\d*) typ (\\S*)(?: raddr (\\S*) rport (\\d*))?(?: tcptype (\\S*))?(?: generation (\\d*))?(?: network-id (\\d*))?(?: network-cost (\\d*))?",
+                            "candidates",
+                            new String[]{"foundation", "component", "transport", "priority", "ip", "port", "type", "raddr", "rport", "tcptype", "generation", "network-id", "network-cost" },
+                            x -> {
+                                var str = "candidate:%s %d %s %d %s %d typ %s";
+
+                                str += jsonHasNotNull(x,"raddr") ? " raddr %s rport %d" : "%v%v";
+
+                                // NB: candidate has three optional chunks, so %void middles one if it's missing
+                                str += jsonHasNotNull(x, "tcptype") ? " tcptype %s" : "%v";
+
+                                if (jsonHasNotNull(x, "generation")) {
+                                    str += " generation %d";
+                                }
+
+                                str += jsonHasNotNull(x, "network-id") ? " network-id %d" : "%v";
+                                str += jsonHasNotNull(x, "network-cost") ? " network-cost %d" : "%v";
+                                return  str;
+                            }
+                    ),
+                    new Grammar(
+                            "",
                             "^rtpmap:(\\d*) ([\\w\\-.]*)(?:\\s*\\/(\\d*)(?:\\s*\\/(\\S*))?)?",
                             "rtp",
                             new String[]{"payload", "codec", "rate", "encoding" },
@@ -172,7 +194,31 @@ public class Grammar {
                             "rtcpRsize",
                             "^(rtcp-rsize)"
                     ),
-            }
+                    new Grammar(
+                            "",
+                            "^ssrc-group:([\\x21\\x23\\x24\\x25\\x26\\x27\\x2A\\x2B\\x2D\\x2E\\w]*) (.*)",
+                            "ssrcGroups",
+                            new String[]{"semantics", "ssrcs" },
+                            x -> "ssrc-group:%s %s"
+                    ),
+                    new Grammar(
+                            "",
+                            "^ssrc:(\\d*) ([\\w_-]*)(?::(.*))?",
+                            "ssrcs",
+                            new String[]{"id", "attribute", "value", },
+                            x -> {
+                                var str = "ssrc:%d";
+                                if(jsonHasNotNull(x,"attribute")){
+                                    str += " %s";
+                                    if(jsonHasNotNull(x,"value")){
+                                        str += ":%s";
+                                    }
+                                }
+                                return str;
+                            }
+                    ),
+
+}
     );
 
     public Grammar(String name) {

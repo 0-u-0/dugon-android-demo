@@ -88,12 +88,15 @@ public class Writer {
             for (int i = 0; i < grammar.names.length; i += 1) {
                 var n = grammar.names[i];
                 if (!grammar.name.isEmpty()) {
+                    Log.d(TAG,grammar.name+" "+location.get(grammar.name).toString());
                     formatParameters.add(jsonToReal(location.getAsJsonObject(grammar.name).get(n)));
                 }
                 else { // for mLine and push attributes
-                    Log.d(TAG,grammar.names[i]);
-                    Log.d(TAG,location.get(grammar.names[i]).toString());
-                    formatParameters.add(jsonToReal(location.get(grammar.names[i])));
+                    if(location.has(grammar.names[i])){
+                        formatParameters.add(jsonToReal(location.get(grammar.names[i])));
+                    }else{
+                        formatParameters.add(0);
+                    }
                 }
             }
         }
@@ -142,7 +145,7 @@ public class Writer {
                     // %d for integer parameters
                     if (argIndex < args.size()) {
                         Object arg = args.get(argIndex);
-                        if (arg instanceof Integer) {
+                        if (arg instanceof Long) {
                             result.append(arg);  // Output the integer directly
                         } else {
                             result.append(0);  // If not an integer, output 0 or handle it as default
@@ -173,7 +176,7 @@ public class Writer {
         }
         var p = e.getAsJsonPrimitive();
         if(p.isNumber()){
-            return p.getAsInt();
+            return p.getAsLong();
         }else if(p.isString()){
             return p.getAsString();
         }

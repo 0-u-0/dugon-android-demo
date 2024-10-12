@@ -45,8 +45,6 @@ public class Parser {
                     if (matcher.find()) {
                         parseRegex(g, matcher ,location);
                         break;
-                    }else{
-                        Log.d(TAG,"Match failed:"+content);
                     }
                 }
             }
@@ -62,6 +60,7 @@ public class Parser {
 
     public static void parseRegex(Grammar g, Matcher matcher,JsonObject location) {
         if (!g.push.isEmpty() && !location.has(g.push)) {
+            Log.d(TAG,"parseRegex:"+g.push+" "+g.regex);
             location.add(g.push, new JsonArray());
         } else if (g.needsBlank() && !location.has(g.name)) {
             location.add(g.name, new JsonObject());
@@ -79,7 +78,7 @@ public class Parser {
 
     public static void addProperties(JsonObject location, String key, String input) {
         try {
-            int result = Integer.parseInt(input);
+            long result = Long.parseLong(input);
             location.addProperty(key, result);
         } catch (NumberFormatException e) {
             location.addProperty(key, input);

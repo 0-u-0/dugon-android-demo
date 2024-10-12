@@ -1,14 +1,21 @@
 package one.dugon.demo.sdk.sdp;
 
+import android.util.Log;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,6 +23,8 @@ import java.util.stream.StreamSupport;
 
 
 public class Utils {
+    private static final String TAG = "Utils";
+
     private static final Pattern keyValueRegex = Pattern.compile("^\\s*([^= ]+)(?:\\s*=\\s*([^ ]+))?$");
 
     private static final Pattern MimeTypeRegex = Pattern.compile("^(audio|video)/(.+)", Pattern.CASE_INSENSITIVE);
@@ -195,6 +204,134 @@ public class Utils {
     }
 
     //--------------------------
+
+    public static String getCodecName(JsonObject codec) {
+        Pattern mimeTypePattern = Pattern.compile("^(audio|video)/", Pattern.CASE_INSENSITIVE);
+        String mimeType = codec.get("mimeType").getAsString();
+        Matcher matcher = mimeTypePattern.matcher(mimeType);
+
+        return matcher.replaceAll("");
+    }
+
+    public static JsonArray getRtpEncodings(JsonObject offerMediaObject) {
+        List<Long> ssrcs = new ArrayList<>();
+        Log.d(TAG,offerMediaObject.toString());
+
+        // Extract SSRCs from the offerMediaObject
+        for (JsonElement lineElement : offerMediaObject.getAsJsonArray("ssrcs")) {
+            JsonObject line = lineElement.getAsJsonObject();
+            long ssrc = line.get("id").getAsLong();
+            ssrcs.add(ssrc);
+        }
+
+        if (ssrcs.isEmpty()) {
+            throw new RuntimeException("no a=ssrc lines found");
+        }
+
+        // Remove duplicates
+        Set<Long> uniqueSsrcs = new LinkedHashSet<>(ssrcs);
+        ssrcs.clear();
+        ssrcs.addAll(uniqueSsrcs);
+
+        // Get media and RTX SSRCs
+        Map<Long, Long> ssrcToRtxSsrc = new HashMap<>();
+
+        if (offerMediaObject.has("ssrcGroups")) {
+            JsonArray ssrcGroups = offerMediaObject.getAsJsonArray("ssrcGroups");
+
+            for (JsonElement lineElement : ssrcGroups) {
+                JsonObject line = lineElement.getAsJsonObject();
+                if (!line.get("semantics").getAsString().equals("FID")) {
+                    continue;
+                }
+
+                String fidLine = line.get("ssrcs").getAsString();
+                String[] ssrcArray = fidLine.split(" ");
+                long ssrc = Long.parseLong(ssrcArray[0]);
+                long rtxSsrc = Long.parseLong(ssrcArray[1]);
+
+                // Remove the RTX SSRC from the list
+                ssrcs.remove(rtxSsrc);
+
+                // Add to the map
+                ssrcToRtxSsrc.put(ssrc, rtxSsrc);
+            }
+        }
+
+        // Fill RTP parameters
+        JsonArray encodings = new JsonArray();
+
+        for (Long ssrc : ssrcs) {
+            JsonObject encoding = new JsonObject();
+            encoding.addProperty("ssrc", ssrc);
+
+            if (ssrcToRtxSsrc.containsKey(ssrc)) {
+                JsonObject rtx = new JsonObject();
+                rtx.addProperty("ssrc", ssrcToRtxSsrc.get(ssrc));
+                encoding.add("rtx", rtx);
+            }
+
+            encodings.add(encoding);
+        }
+
+        return encodings;
+    }
+
+    public static String getCname(JsonObject offerMediaObject) {
+
+        if (!offerMediaObject.has("ssrcs")) {
+            return "";
+        }
+
+        JsonArray mSsrcs = offerMediaObject.getAsJsonArray("ssrcs");
+
+        Iterator<JsonElement> iterator = mSsrcs.iterator();
+        while (iterator.hasNext()) {
+            JsonObject line = iterator.next().getAsJsonObject();
+
+            if (line.has("attribute") && line.get("attribute").isJsonPrimitive()
+                    && line.get("attribute").getAsJsonPrimitive().isString()) {
+                return line.getAsJsonPrimitive("value").getAsString();
+            }
+        }
+
+        return "";
+    }
+
+
+    public JsonArray reduceCodecs(JsonArray codecs, JsonObject capCodec) {
+        JsonArray filteredCodecs = new JsonArray();
+
+        // If no capability codec is given, take the first one (and RTX).
+        if (capCodec == null || !capCodec.isJsonObject()) {
+            filteredCodecs.add(codecs.get(0));
+
+            if (codecs.size() > 1 && isRtxCodec(codecs.get(1).getAsJsonObject())) {
+                filteredCodecs.add(codecs.get(1));
+            }
+        } else {
+            // Otherwise look for a compatible set of codecs.
+            for (int idx = 0; idx < codecs.size(); ++idx) {
+                JsonObject codec = codecs.get(idx).getAsJsonObject();
+                if (matchCodecs(codec, capCodec, true, false)) {
+                    filteredCodecs.add(codec);
+
+                    if (idx + 1 < codecs.size() && isRtxCodec(codecs.get(idx + 1).getAsJsonObject())) {
+                        filteredCodecs.add(codecs.get(idx + 1).getAsJsonObject());
+                    }
+
+                    break;
+                }
+            }
+
+            if (filteredCodecs.size() == 0) {
+                throw new IllegalArgumentException("no matching codec found");
+            }
+        }
+
+        return filteredCodecs;
+    }
+
     private static boolean isRtxCodec(JsonObject codec) {
 
         String mimeType = codec.get("mimeType").getAsString();
@@ -481,5 +618,272 @@ public class Utils {
         }
 
         return extendedRtpCapabilities;
+    }
+
+    public static JsonObject getRecvRtpCapabilities(JsonObject extendedRtpCapabilities) {
+        // Create the resulting rtpCapabilities object
+        JsonObject rtpCapabilities = new JsonObject();
+        rtpCapabilities.add("codecs", new JsonArray());
+        rtpCapabilities.add("headerExtensions", new JsonArray());
+
+        // Iterate over the codecs in the extendedRtpCapabilities object
+        JsonArray codecs = extendedRtpCapabilities.getAsJsonArray("codecs");
+        for (JsonElement extendedCodecElement : codecs) {
+            JsonObject extendedCodec = extendedCodecElement.getAsJsonObject();
+
+            // Create the codec object
+            JsonObject codec = new JsonObject();
+            codec.add("mimeType", extendedCodec.get("mimeType"));
+            codec.add("kind", extendedCodec.get("kind"));
+            codec.add("preferredPayloadType", extendedCodec.get("remotePayloadType"));
+            codec.add("clockRate", extendedCodec.get("clockRate"));
+            codec.add("parameters", extendedCodec.get("localParameters"));
+            codec.add("rtcpFeedback", extendedCodec.get("rtcpFeedback"));
+
+            // Optionally add channels if it exists
+            if (extendedCodec.has("channels")) {
+                codec.add("channels", extendedCodec.get("channels"));
+            }
+
+            // Add codec to the rtpCapabilities codecs array
+            rtpCapabilities.getAsJsonArray("codecs").add(codec);
+
+            // Add RTX codec if remoteRtxPayloadType exists
+            if (!extendedCodec.has("remoteRtxPayloadType") || extendedCodec.get("remoteRtxPayloadType").isJsonNull()) {
+                continue;
+            }
+
+            // Create mimeType for RTX codec
+            String mimeType = extendedCodec.get("kind").getAsString() + "/rtx";
+
+            // Create the rtxCodec object
+            JsonObject rtxCodec = new JsonObject();
+            rtxCodec.addProperty("mimeType", mimeType);
+            rtxCodec.add("kind", extendedCodec.get("kind"));
+            rtxCodec.add("preferredPayloadType", extendedCodec.get("remoteRtxPayloadType"));
+            rtxCodec.add("clockRate", extendedCodec.get("clockRate"));
+
+            JsonObject rtxParameters = new JsonObject();
+            rtxParameters.add("apt", extendedCodec.get("remotePayloadType"));
+            rtxCodec.add("parameters", rtxParameters);
+
+            rtxCodec.add("rtcpFeedback", new JsonArray());
+
+            // Add rtxCodec to the rtpCapabilities codecs array
+            rtpCapabilities.getAsJsonArray("codecs").add(rtxCodec);
+
+            // TODO: In the future, add FEC, CN, etc., codecs.
+        }
+
+        return rtpCapabilities;
+    }
+
+    public static JsonObject getSendingRtpParameters(String kind, JsonObject extendedRtpCapabilities) {
+        // Create the resulting rtpParameters object
+        JsonObject rtpParameters = new JsonObject();
+        rtpParameters.add("mid", null);
+        rtpParameters.add("codecs", new JsonArray());
+        rtpParameters.add("headerExtensions", new JsonArray());
+        rtpParameters.add("encodings", new JsonArray());
+        rtpParameters.add("rtcp", new JsonObject());
+
+        // Process codecs
+        JsonArray codecs = extendedRtpCapabilities.getAsJsonArray("codecs");
+        for (JsonElement extendedCodecElement : codecs) {
+            JsonObject extendedCodec = extendedCodecElement.getAsJsonObject();
+
+            if (!kind.equals(extendedCodec.get("kind").getAsString())) {
+                continue;
+            }
+
+            // Create the codec object
+            JsonObject codec = new JsonObject();
+            codec.add("mimeType", extendedCodec.get("mimeType"));
+            codec.add("payloadType", extendedCodec.get("localPayloadType"));
+            codec.add("clockRate", extendedCodec.get("clockRate"));
+            codec.add("parameters", extendedCodec.get("localParameters"));
+            codec.add("rtcpFeedback", extendedCodec.get("rtcpFeedback"));
+
+            // Optionally add channels if it exists
+            if (extendedCodec.has("channels")) {
+                codec.add("channels", extendedCodec.get("channels"));
+            }
+
+            // Add codec to the rtpParameters codecs array
+            rtpParameters.getAsJsonArray("codecs").add(codec);
+
+            // Add RTX codec if localRtxPayloadType exists
+            if (extendedCodec.has("localRtxPayloadType") && !extendedCodec.get("localRtxPayloadType").isJsonNull()) {
+                String mimeType = extendedCodec.get("kind").getAsString() + "/rtx";
+
+                // Create the rtxCodec object
+                JsonObject rtxCodec = new JsonObject();
+                rtxCodec.addProperty("mimeType", mimeType);
+                rtxCodec.add("payloadType", extendedCodec.get("localRtxPayloadType"));
+                rtxCodec.add("clockRate", extendedCodec.get("clockRate"));
+
+                JsonObject rtxParameters = new JsonObject();
+                rtxParameters.add("apt", extendedCodec.get("localPayloadType"));
+                rtxCodec.add("parameters", rtxParameters);
+
+                rtxCodec.add("rtcpFeedback", new JsonArray());
+
+                // Add rtxCodec to the rtpParameters codecs array
+                rtpParameters.getAsJsonArray("codecs").add(rtxCodec);
+            }
+        }
+
+        // Process header extensions
+        JsonArray headerExtensions = extendedRtpCapabilities.getAsJsonArray("headerExtensions");
+        for (JsonElement extendedExtensionElement : headerExtensions) {
+            JsonObject extendedExtension = extendedExtensionElement.getAsJsonObject();
+
+            if (!kind.equals(extendedExtension.get("kind").getAsString())) {
+                continue;
+            }
+
+            String direction = extendedExtension.get("direction").getAsString();
+
+            // Ignore RTP extensions not valid for sending.
+            if (!"sendrecv".equals(direction) && !"sendonly".equals(direction)) {
+                continue;
+            }
+
+            // Create the header extension object
+            JsonObject ext = new JsonObject();
+            ext.add("uri", extendedExtension.get("uri"));
+            ext.add("id", extendedExtension.get("sendId"));
+            ext.add("encrypt", extendedExtension.get("encrypt"));
+            ext.add("parameters", new JsonObject());
+
+            // Add ext to the rtpParameters headerExtensions array
+            rtpParameters.getAsJsonArray("headerExtensions").add(ext);
+        }
+
+        return rtpParameters;
+    }
+
+    private static JsonElement findHeaderExtension(JsonArray headerExtensions, String uri) {
+        for (JsonElement extElement : headerExtensions) {
+            if (extElement.getAsJsonObject().get("uri").getAsString().equals(uri)) {
+                return extElement;
+            }
+        }
+        return null;
+    }
+
+    public static JsonObject getSendingRemoteRtpParameters(String kind, JsonObject extendedRtpCapabilities) {
+
+        JsonObject rtpParameters = new JsonObject();
+        rtpParameters.add("mid", null);
+        rtpParameters.add("codecs", new JsonArray());
+        rtpParameters.add("headerExtensions", new JsonArray());
+        rtpParameters.add("encodings", new JsonArray());
+        rtpParameters.add("rtcp", new JsonObject());
+
+        for (JsonElement extendedCodecElement : extendedRtpCapabilities.getAsJsonArray("codecs")) {
+            JsonObject extendedCodec = extendedCodecElement.getAsJsonObject();
+
+            if (!kind.equals(extendedCodec.get("kind").getAsString())) {
+                continue;
+            }
+
+            JsonObject codec = new JsonObject();
+            codec.add("mimeType", extendedCodec.get("mimeType"));
+            codec.add("payloadType", extendedCodec.get("localPayloadType"));
+            codec.add("clockRate", extendedCodec.get("clockRate"));
+            codec.add("parameters", extendedCodec.get("remoteParameters"));
+            codec.add("rtcpFeedback", extendedCodec.get("rtcpFeedback"));
+
+            if (extendedCodec.has("channels")) {
+                codec.add("channels", extendedCodec.get("channels"));
+            }
+
+            rtpParameters.getAsJsonArray("codecs").add(codec);
+
+            // Add RTX codec if localRtxPayloadType exists
+            if (extendedCodec.has("localRtxPayloadType") && !extendedCodec.get("localRtxPayloadType").isJsonNull()) {
+                String mimeType = extendedCodec.get("kind").getAsString() + "/rtx";
+                JsonObject rtxCodec = new JsonObject();
+                rtxCodec.addProperty("mimeType", mimeType);
+                rtxCodec.add("payloadType", extendedCodec.get("localRtxPayloadType"));
+                rtxCodec.add("clockRate", extendedCodec.get("clockRate"));
+
+                JsonObject rtxParameters = new JsonObject();
+                rtxParameters.add("apt", extendedCodec.get("localPayloadType"));
+                rtxCodec.add("parameters", rtxParameters);
+
+                rtxCodec.add("rtcpFeedback", new JsonArray());
+
+                rtpParameters.getAsJsonArray("codecs").add(rtxCodec);
+            }
+        }
+
+        for (JsonElement extendedExtensionElement : extendedRtpCapabilities.getAsJsonArray("headerExtensions")) {
+            JsonObject extendedExtension = extendedExtensionElement.getAsJsonObject();
+
+            if (!kind.equals(extendedExtension.get("kind").getAsString())) {
+                continue;
+            }
+
+            String direction = extendedExtension.get("direction").getAsString();
+
+            // Ignore RTP extensions not valid for sending
+            if (!"sendrecv".equals(direction) && !"sendonly".equals(direction)) {
+                continue;
+            }
+
+            JsonObject ext = new JsonObject();
+            ext.add("uri", extendedExtension.get("uri"));
+            ext.add("id", extendedExtension.get("sendId"));
+            ext.add("encrypt", extendedExtension.get("encrypt"));
+            ext.add("parameters", new JsonObject());
+
+            rtpParameters.getAsJsonArray("headerExtensions").add(ext);
+        }
+
+        JsonArray headerExtensionsArray = rtpParameters.getAsJsonArray("headerExtensions");
+
+        // Reduce codecs' RTCP feedback. Use Transport-CC if available, REMB otherwise
+        JsonElement transportWideCcHeaderExtension = findHeaderExtension(headerExtensionsArray, "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01");
+
+        if (transportWideCcHeaderExtension != null) {
+            removeRtcpFeedback(rtpParameters, "goog-remb");
+            return rtpParameters;
+        }
+
+        JsonElement absSendTimeHeaderExtension = findHeaderExtension(headerExtensionsArray, "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time");
+
+        if (absSendTimeHeaderExtension != null) {
+            removeRtcpFeedback(rtpParameters, "transport-cc");
+            return rtpParameters;
+        }
+
+        // Default case: remove both 'transport-cc' and 'goog-remb'
+        removeRtcpFeedback(rtpParameters, "transport-cc", "goog-remb");
+
+        return rtpParameters;
+    }
+
+    private static void removeRtcpFeedback(JsonObject rtpParameters, String... feedbackTypes) {
+        JsonArray codecs = rtpParameters.getAsJsonArray("codecs");
+
+        for (JsonElement codecElement : codecs) {
+            JsonObject codec = codecElement.getAsJsonObject();
+            JsonArray rtcpFeedback = codec.getAsJsonArray("rtcpFeedback");
+
+            Iterator<JsonElement> it = rtcpFeedback.iterator();
+            while (it.hasNext()) {
+                JsonObject feedback = it.next().getAsJsonObject();
+                String type = feedback.get("type").getAsString();
+
+                for (String feedbackType : feedbackTypes) {
+                    if (type.equals(feedbackType)) {
+                        it.remove();
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

@@ -1,11 +1,15 @@
 package one.dugon.demo.sdk;
 
 import android.content.Context;
+import android.nfc.Tag;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import org.webrtc.Camera1Enumerator;
 import org.webrtc.Camera2Enumerator;
@@ -21,8 +25,10 @@ import org.webrtc.IceCandidateErrorEvent;
 import org.webrtc.Logging;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
+import org.webrtc.MediaStreamTrack;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.RtpParameters;
 import org.webrtc.RtpReceiver;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
@@ -45,16 +51,23 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class Transport implements PeerConnection.Observer{
+import one.dugon.demo.sdk.sdp.Parser;
+import one.dugon.demo.sdk.sdp.RemoteSdp;
+import one.dugon.demo.sdk.sdp.Utils;
+import one.dugon.demo.sdk.sdp.Writer;
+
+public class Transport implements PeerConnection.Observer {
 
 //    public static final String VIDEO_TRACK_ID = "ARDAMSv0";
 //
 //    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 //
-//    private static final String TAG = "Transport";
+    private static final String TAG = "Transport";
 //
 //    private final Context appContext;
 //    private final EglBase rootEglBase;
@@ -80,13 +93,99 @@ public class Transport implements PeerConnection.Observer{
     @Nullable
     private PeerConnection pc;
 
-    public Transport()  {
+    public RemoteSdp remoteSdp;
 
+    public JsonObject sendingRtpParametersByKind;
+    public JsonObject sendingRemoteRtpParametersByKind;
+
+    public Transport(String id,
+                     JsonObject iceParameters,
+                     JsonArray iceCandidates,
+                     JsonObject dtlsParameters,
+                     JsonObject sendingRtpParametersByKind,
+                     JsonObject sendingRemoteRtpParametersByKind) {
+        this.sendingRtpParametersByKind = sendingRtpParametersByKind.deepCopy();
+        this.sendingRemoteRtpParametersByKind = sendingRemoteRtpParametersByKind.deepCopy();
+        remoteSdp = new RemoteSdp(iceParameters, iceCandidates, dtlsParameters, null);
     }
 
-    public void start(PeerConnection peerConnection){
+    public void start(PeerConnection peerConnection) {
         pc = peerConnection;
     }
+
+    //
+    public void send(MediaStreamTrack track, List<RtpParameters.Encoding> encodings){
+        var sendingRtpParameters = sendingRtpParametersByKind.getAsJsonObject(track.kind()).deepCopy();
+        var sendingRemoteRtpParameters = sendingRemoteRtpParametersByKind.getAsJsonObject(track.kind()).deepCopy();
+//        reduceCodecs
+        var mediaSectionIdx = remoteSdp.getNextMediaSectionIdx();
+        var transceiver = pc.addTransceiver(track);
+
+        MediaConstraints sdpMediaConstraints = new MediaConstraints();
+
+        CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
+
+        pc.createOffer(new Dugon.SDPObserverForRtpCaps(){
+            @Override
+            public void onCreateSuccess(SessionDescription desc) {
+                futureDesc.complete(desc);
+            }
+
+            @Override
+            public void onCreateFailure(String error) {
+                futureDesc.completeExceptionally(new Exception(error));
+            }
+        },sdpMediaConstraints);
+
+        try {
+            var sdp = futureDesc.get();
+            Log.d(TAG,sdp.description);
+
+            CompletableFuture<Void> futureDesc2 = new CompletableFuture<>();
+
+            pc.setLocalDescription(new Dugon.SDPObserverForRtpCaps(){
+                @Override
+                public void onSetSuccess() {
+                    futureDesc2.complete(null);
+                }
+
+                @Override
+                public void onSetFailure(String error) {
+                    futureDesc2.completeExceptionally(new Exception(error));
+                }
+            },sdp);
+
+            futureDesc2.get();
+            var localId = transceiver.getMid();
+            Log.d(TAG,"localId:"+localId);
+
+            sendingRtpParameters.addProperty("mid",localId);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        var localSdp = pc.getLocalDescription();
+        var localSdpObj = Parser.parse(localSdp.description);
+//        var localSdpStr = Writer.write(localSdpObj);
+//        Log.d(TAG,localSdpStr);
+//        Log.d(TAG,localSdpObj.get("media").getAsJsonArray().get(0).getAsJsonObject().get("ssrcs").toString());
+
+        var offerMediaObject = localSdpObj.getAsJsonArray("media").get(mediaSectionIdx.idx).getAsJsonObject();
+
+        sendingRtpParameters.getAsJsonObject("rtcp").addProperty("cname",Utils.getCname(offerMediaObject));
+
+        sendingRtpParameters.add("encodings",Utils.getRtpEncodings(offerMediaObject));
+
+//        Log.d(TAG,"codec:"+sendingRemoteRtpParameters.getAsJsonArray("codecs").toString());
+        // TODO: 2024/10/11 fix mid
+        remoteSdp.send(offerMediaObject,"",sendingRtpParameters,sendingRemoteRtpParameters,null);
+
+        var remoteSdpStr = remoteSdp.getSdp();
+        Log.d(TAG,remoteSdpStr);
+    }
+
+
 
     @Override
     public void onSignalingChange(PeerConnection.SignalingState signalingState) {
