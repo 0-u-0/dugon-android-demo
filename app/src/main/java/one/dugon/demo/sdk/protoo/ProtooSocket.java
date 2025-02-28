@@ -1,4 +1,4 @@
-package one.dugon.demo.sdk;
+package one.dugon.demo.sdk.protoo;
 
 
 import android.util.Log;
@@ -8,22 +8,17 @@ import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import org.webrtc.SessionDescription;
 
 import okhttp3.*;
+import okhttp3.Request;
 import okio.ByteString;
-import one.dugon.demo.sdk.protoo.ProtooResponse;
 
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class ProtooSocket{
     private static final String TAG = "ProtooSocket";
@@ -54,7 +49,7 @@ public class ProtooSocket{
             urlBuilder.setLength(urlBuilder.length() - 1); // 移除最后一个多余的 '&'
         }
 
-        Request.Builder requestBuilder = new Request.Builder()
+        okhttp3.Request.Builder requestBuilder = new okhttp3.Request.Builder()
                 .url(urlBuilder.toString())
                 .header("Sec-WebSocket-Protocol", "protoo");
 

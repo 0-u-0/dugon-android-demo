@@ -1,4 +1,4 @@
-package one.dugon.demo.sdk;
+package one.dugon.demo.sdk.b;
 
 import android.util.Log;
 
@@ -6,6 +6,8 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import one.dugon.demo.sdk.b.SocketListener;
 
 public class Session implements SocketListener {
 

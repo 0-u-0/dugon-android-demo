@@ -1,4 +1,4 @@
-package one.dugon.demo.sdk;
+package one.dugon.demo.sdk.b;
 
 import android.util.Base64;
 import android.util.Log;
@@ -8,7 +8,6 @@ import org.json.JSONObject;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -17,7 +16,6 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
-import okio.ByteString;
 
 interface SocketListener {
     void onConnected();
