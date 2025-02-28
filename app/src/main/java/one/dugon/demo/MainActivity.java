@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import one.dugon.demo.sdk.Dugon;
 import one.dugon.demo.sdk.LocalVideoSource;
 import one.dugon.demo.sdk.ProtooSocket;
-import one.dugon.demo.sdk.Session;
 import one.dugon.demo.sdk.Transport;
 
 
@@ -43,13 +42,10 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    private Session session;
     private Transport transport;
     private SurfaceViewRenderer fullscreenRenderer;
     private LocalVideoSource localVideoSource;
     private ProtooSocket socket;
-
-    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
@@ -123,92 +119,89 @@ public class MainActivity extends AppCompatActivity {
     public void soupTest() {
         socket = new ProtooSocket();
 
-        executor.execute(() -> {
-            try {
-                var f = socket.connect("ws://192.168.83.118:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+        try {
+            var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
 //                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
-                f.get();
-                var r1 = socket.request("getRouterRtpCapabilities");
-                JsonObject rr1 = r1.get();
+            f.get();
+            var r1 = socket.request("getRouterRtpCapabilities");
+            JsonObject rr1 = r1.get();
 
-                //-----
-                Dugon.load(rr1);
+            //-----
+            Dugon.load(rr1);
 
-                JsonObject joinData = new JsonObject();
-                JsonObject rtpCapabilitiesJson = Dugon.rtpCapabilities;
-                JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
-                JsonObject device = new JsonObject();
-                device.addProperty("flag", "chrome");
-                device.addProperty("name", "Chrome");
-                device.addProperty("version", "129.0.0.0");
+            JsonObject joinData = new JsonObject();
+            JsonObject rtpCapabilitiesJson = Dugon.rtpCapabilities;
+            JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
+            JsonObject device = new JsonObject();
+            device.addProperty("flag", "chrome");
+            device.addProperty("name", "Chrome");
+            device.addProperty("version", "129.0.0.0");
 
-                joinData.add("device", device);
-                joinData.add("rtpCapabilities", rtpCapabilitiesJson);
-                joinData.add("sctpCapabilities", sctpCapabilitiesJson);
-                joinData.addProperty("displayName", "gg");
+            joinData.add("device", device);
+            joinData.add("rtpCapabilities", rtpCapabilitiesJson);
+            joinData.add("sctpCapabilities", sctpCapabilitiesJson);
+            joinData.addProperty("displayName", "gg");
 
-                var r2 = socket.request("join", joinData);
+            var r2 = socket.request("join", joinData);
 
-                //
+            //
 
-                //-------------------
-                JsonObject createData = new JsonObject();
-                createData.addProperty("consuming", false);
-                createData.addProperty("forceTcp", false);
-                createData.addProperty("producing", true);
+            //-------------------
+            JsonObject createData = new JsonObject();
+            createData.addProperty("consuming", false);
+            createData.addProperty("forceTcp", false);
+            createData.addProperty("producing", true);
 
-                var r3 = socket.request("createWebRtcTransport", createData);
-                JsonObject rr3 = r3.get();
-                Log.d(TAG, rr3.toString());
-                String sendId = rr3.get("id").getAsString();
-                JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
-                JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
-                JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
+            var r3 = socket.request("createWebRtcTransport", createData);
+            JsonObject rr3 = r3.get();
+            Log.d(TAG, rr3.toString());
+            String sendId = rr3.get("id").getAsString();
+            JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
+            JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
+            JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
 
-                sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
-                List<RtpParameters.Encoding> encodings = new ArrayList<>();
+            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+            List<RtpParameters.Encoding> encodings = new ArrayList<>();
 
-                sender.onConnect = (JsonObject dtls)->{
-                    Log.d(TAG,"dtls:"+dtls.toString());
-                    var connectData = new JsonObject();
-                    connectData.addProperty("transportId",sendId);
-                    connectData.add("dtlsParameters",dtls);
-                    var r4 = socket.request("connectWebRtcTransport", connectData);
-                    try {
-                        JsonObject rr4 = r4.get();
+            sender.onConnect = (JsonObject dtls)->{
+                Log.d(TAG,"dtls:"+dtls.toString());
+                var connectData = new JsonObject();
+                connectData.addProperty("transportId",sendId);
+                connectData.add("dtlsParameters",dtls);
+                var r4 = socket.request("connectWebRtcTransport", connectData);
+                try {
+                    JsonObject rr4 = r4.get();
 
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                } catch (ExecutionException e) {
+                    throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
 
-                };
+            };
 
-                sender.onProduce = (JsonObject pData)->{
-                    pData.addProperty("transportId",sendId);
-                    var r4 = socket.request("produce", pData);
-                    try {
-                        JsonObject rr4 = r4.get();
-                        return rr4.get("id").getAsString();
+            sender.onProduce = (JsonObject pData)->{
+                pData.addProperty("transportId",sendId);
+                var r4 = socket.request("produce", pData);
+                try {
+                    JsonObject rr4 = r4.get();
+                    return rr4.get("id").getAsString();
 
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    } finally {
-                        return "";
-                    }
-                };
-                sender.send(localVideoSource.track, encodings);
+                } catch (ExecutionException e) {
+                    throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    return "";
+                }
+            };
+            sender.send(localVideoSource.track, encodings);
 
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
-
-        });
     }
 }
