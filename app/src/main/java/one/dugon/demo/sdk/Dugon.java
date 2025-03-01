@@ -3,8 +3,6 @@ package one.dugon.demo.sdk;
 import android.content.Context;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -40,7 +38,6 @@ import java.util.concurrent.Future;
 
 import one.dugon.demo.sdk.sdp.Parser;
 import one.dugon.demo.sdk.sdp.Utils;
-import one.dugon.demo.sdk.sdp.Writer;
 
 public class Dugon {
 
@@ -300,7 +297,8 @@ public class Dugon {
         renderer.init(rootEglBase.getEglBaseContext(), null);
     }
 
-    public static void initTransport(Transport transport) {
+    // TODO: 2025/3/1 remove??? 
+    public static void initTransport(SendTransport sendTransport) {
 
         executor.execute(() -> {
             List<PeerConnection.IceServer> iceServers = new ArrayList<>();
@@ -318,8 +316,8 @@ public class Dugon {
             rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
 
             assert factory != null;
-            PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, transport);
-            transport.start(peerConnection);
+            PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, sendTransport);
+            sendTransport.start(peerConnection);
         });
 
 
@@ -422,7 +420,7 @@ public class Dugon {
         rtpCapabilities = Utils.getRecvRtpCapabilities(extendedRtpCapabilities);
     }
 
-    public static Transport createSendTransport(
+    public static SendTransport createSendTransport(
             String id,
             JsonObject iceParameters,
             JsonArray iceCandidates,
@@ -441,7 +439,7 @@ public class Dugon {
         sendingRemoteRtpParametersByKind.add("audio", audioSendingRemoteRtpParameters);
         sendingRemoteRtpParametersByKind.add("video", videoSendingRemoteRtpParameters);
 
-        var t = new Transport(id, iceParameters, iceCandidates, dtlsParameters, sendingRtpParametersByKind, sendingRemoteRtpParametersByKind);
+        var t = new SendTransport(id, iceParameters, iceCandidates, dtlsParameters, sendingRtpParametersByKind, sendingRemoteRtpParametersByKind);
         //
         List<PeerConnection.IceServer> iceServers = new ArrayList<>();
 
@@ -452,4 +450,5 @@ public class Dugon {
         t.start(peerConnection);
         return t;
     }
+
 }

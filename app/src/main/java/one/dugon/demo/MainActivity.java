@@ -12,7 +12,6 @@ import androidx.core.content.ContextCompat;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import org.webrtc.RendererCommon;
 import org.webrtc.RtpParameters;
@@ -27,14 +26,14 @@ import java.util.concurrent.ExecutionException;
 import one.dugon.demo.sdk.Dugon;
 import one.dugon.demo.sdk.LocalVideoSource;
 import one.dugon.demo.sdk.protoo.ProtooSocket;
-import one.dugon.demo.sdk.Transport;
+import one.dugon.demo.sdk.SendTransport;
 
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    private Transport transport;
+    private SendTransport sendTransport;
     private SurfaceViewRenderer fullscreenRenderer;
     private LocalVideoSource localVideoSource;
     private ProtooSocket socket;
@@ -42,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
 
-    private static Transport sender;
+    private static SendTransport sender;
 
 
     @Override
@@ -152,8 +151,7 @@ public class MainActivity extends AppCompatActivity {
             var r2 = socket.request("join", joinData);
             r2.get();
 
-            //
-
+            // create sender
             String sendId = rr3.get("id").getAsString();
             JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
             JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");

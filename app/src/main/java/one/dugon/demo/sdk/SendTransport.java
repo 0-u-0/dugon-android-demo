@@ -1,9 +1,5 @@
 package one.dugon.demo.sdk;
 
-import android.content.Context;
-import android.nfc.Tag;
-import android.os.Environment;
-import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -11,59 +7,26 @@ import androidx.annotation.Nullable;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import org.webrtc.Camera1Enumerator;
-import org.webrtc.Camera2Enumerator;
-import org.webrtc.CameraEnumerator;
-import org.webrtc.CandidatePairChangeEvent;
 import org.webrtc.DataChannel;
-import org.webrtc.DefaultVideoDecoderFactory;
-import org.webrtc.DefaultVideoEncoderFactory;
-import org.webrtc.EglBase;
-import org.webrtc.FileVideoCapturer;
 import org.webrtc.IceCandidate;
-import org.webrtc.IceCandidateErrorEvent;
-import org.webrtc.Logging;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.MediaStreamTrack;
 import org.webrtc.PeerConnection;
-import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RtpParameters;
-import org.webrtc.RtpReceiver;
-import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
-import org.webrtc.SoftwareVideoDecoderFactory;
-import org.webrtc.SoftwareVideoEncoderFactory;
-import org.webrtc.SurfaceTextureHelper;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoDecoderFactory;
-import org.webrtc.VideoEncoderFactory;
-import org.webrtc.VideoSink;
-import org.webrtc.VideoSource;
-import org.webrtc.VideoTrack;
-import org.webrtc.audio.AudioDeviceModule;
-import org.webrtc.audio.JavaAudioDeviceModule;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import one.dugon.demo.sdk.sdp.Parser;
 import one.dugon.demo.sdk.sdp.RemoteSdp;
 import one.dugon.demo.sdk.sdp.Utils;
-import one.dugon.demo.sdk.sdp.Writer;
 
-public class Transport implements PeerConnection.Observer {
+public class SendTransport implements PeerConnection.Observer {
 
     //    public static final String VIDEO_TRACK_ID = "ARDAMSv0";
 //
@@ -104,12 +67,12 @@ public class Transport implements PeerConnection.Observer {
     public JsonObject sendingRemoteRtpParametersByKind;
     public String id ;
 
-    public Transport(String id,
-                     JsonObject iceParameters,
-                     JsonArray iceCandidates,
-                     JsonObject dtlsParameters,
-                     JsonObject sendingRtpParametersByKind,
-                     JsonObject sendingRemoteRtpParametersByKind) {
+    public SendTransport(String id,
+                         JsonObject iceParameters,
+                         JsonArray iceCandidates,
+                         JsonObject dtlsParameters,
+                         JsonObject sendingRtpParametersByKind,
+                         JsonObject sendingRemoteRtpParametersByKind) {
         this.id = id;
         this.sendingRtpParametersByKind = sendingRtpParametersByKind.deepCopy();
         this.sendingRemoteRtpParametersByKind = sendingRemoteRtpParametersByKind.deepCopy();
