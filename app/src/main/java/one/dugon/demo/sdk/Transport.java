@@ -247,9 +247,6 @@ public class Transport implements PeerConnection.Observer {
         ready = true;
     }
 
-    ;
-
-
     @Override
     public void onSignalingChange(PeerConnection.SignalingState signalingState) {
 

@@ -109,6 +109,9 @@ public class Dugon {
     }
 
     public static JsonObject rtpCapabilities;
+
+    public static JsonObject sctpCapabilities;
+
     public static JsonObject extendedRtpCapabilities;
 
     public static JsonObject getRtpCapabilities() {
@@ -404,6 +407,14 @@ public class Dugon {
 
     // for mediasoup
     public static void load(JsonObject routerRtpCapabilities) {
+        var numStreams = new JsonObject();
+        numStreams.addProperty("OS", "1024");
+        numStreams.addProperty("MIS", "1024");
+
+        sctpCapabilities = new JsonObject();
+        sctpCapabilities.add("numStreams", numStreams);
+
+
         var local = getRtpCapabilities();
         Log.d(TAG, "getRtpCapabilities ok");
         extendedRtpCapabilities = Utils.getExtendedRtpCapabilities(local, routerRtpCapabilities);

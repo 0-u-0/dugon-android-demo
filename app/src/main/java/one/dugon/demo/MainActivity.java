@@ -21,6 +21,7 @@ import org.webrtc.SurfaceViewRenderer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import one.dugon.demo.sdk.Dugon;
@@ -42,14 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private static Transport sender;
-    // TODO: 2024/10/8 remove
-    private String sctpCapabilities = "{\n" +
-            "            \"numStreams\":\n" +
-            "            {\n" +
-            "                \"OS\": 1024,\n" +
-            "                \"MIS\": 1024\n" +
-            "            }\n" +
-            "        }";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +99,13 @@ public class MainActivity extends AppCompatActivity {
         socket = new ProtooSocket();
 
         try {
+
+            socket.onRequest = (requestData)->{
+                var requestMethod = requestData.get("method").getAsString();
+                if (Objects.equals(requestMethod, "newConsumer")) {
+                    Log.d(TAG,"newConsumer");
+                }
+            };
             var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
 //                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
             f.get();
@@ -114,9 +115,30 @@ public class MainActivity extends AppCompatActivity {
             //-----
             Dugon.load(rr1);
 
+
+            // for sender
+            JsonObject senderCreateData = new JsonObject();
+            senderCreateData.addProperty("consuming", false);
+            senderCreateData.addProperty("forceTcp", false);
+            senderCreateData.addProperty("producing", true);
+
+            var r3 = socket.request("createWebRtcTransport", senderCreateData);
+            JsonObject rr3 = r3.get();
+            Log.d(TAG, rr3.toString());
+            // for receiver
+            JsonObject receiverCreateData = new JsonObject();
+            receiverCreateData.addProperty("consuming", true);
+            receiverCreateData.addProperty("forceTcp", false);
+            receiverCreateData.addProperty("producing", false);
+
+            var receiverResponse = socket.request("createWebRtcTransport", receiverCreateData);
+            receiverResponse.get();
+
+            // join
             JsonObject joinData = new JsonObject();
-            JsonObject rtpCapabilitiesJson = Dugon.rtpCapabilities;
-            JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
+            var rtpCapabilitiesJson = Dugon.rtpCapabilities;
+            var sctpCapabilitiesJson = Dugon.sctpCapabilities;
+
             JsonObject device = new JsonObject();
             device.addProperty("flag", "chrome");
             device.addProperty("name", "Chrome");
@@ -128,18 +150,10 @@ public class MainActivity extends AppCompatActivity {
             joinData.addProperty("displayName", "gg");
 
             var r2 = socket.request("join", joinData);
+            r2.get();
 
             //
 
-            //-------------------
-            JsonObject createData = new JsonObject();
-            createData.addProperty("consuming", false);
-            createData.addProperty("forceTcp", false);
-            createData.addProperty("producing", true);
-
-            var r3 = socket.request("createWebRtcTransport", createData);
-            JsonObject rr3 = r3.get();
-            Log.d(TAG, rr3.toString());
             String sendId = rr3.get("id").getAsString();
             JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
             JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");

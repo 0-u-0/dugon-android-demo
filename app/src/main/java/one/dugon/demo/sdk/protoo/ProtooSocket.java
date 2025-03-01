@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class ProtooSocket{
     private static final String TAG = "ProtooSocket";
@@ -30,6 +31,8 @@ public class ProtooSocket{
     private Gson gson;
 
     private Map<Integer, CompletableFuture<JsonObject>> pendingRequests;
+
+    public Consumer<JsonObject> onRequest;
 
     public ProtooSocket() {
         this.client = new OkHttpClient();
@@ -48,6 +51,8 @@ public class ProtooSocket{
             }
             urlBuilder.setLength(urlBuilder.length() - 1); // 移除最后一个多余的 '&'
         }
+
+        Log.d(TAG,urlBuilder.toString());
 
         okhttp3.Request.Builder requestBuilder = new okhttp3.Request.Builder()
                 .url(urlBuilder.toString())
@@ -113,6 +118,8 @@ public class ProtooSocket{
 //            Log.d(TAG,response.toString());
                     } else if(jsonObject.has("notification")){
 
+                    } else if(jsonObject.has("request")){
+                        onRequest.accept(jsonObject);
                     }
 
                 }
