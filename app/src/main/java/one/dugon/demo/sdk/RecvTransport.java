@@ -1,0 +1,137 @@
+package one.dugon.demo.sdk;
+
+import android.util.Log;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import org.webrtc.MediaConstraints;
+import org.webrtc.SessionDescription;
+
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import one.dugon.demo.sdk.sdp.Parser;
+
+public class RecvTransport extends Transport{
+    private static final String TAG = "RecvTransport";
+
+    public RecvTransport(String id, JsonObject iceParameters, JsonArray iceCandidates, JsonObject dtlsParameters) {
+        super(id, iceParameters, iceCandidates, dtlsParameters);
+    }
+
+    public void receive(String id, String kind, JsonObject rtpParameters){
+        // TODO: 2025/3/2 maybe get mid from mapMidTransceiver
+        // https://github.com/versatica/libmediasoupclient/blob/v3/src/Handler.cpp#L652C35-L652C52
+        String localId = rtpParameters.get("mid").getAsString();
+        String cname = rtpParameters.getAsJsonObject("rtcp").get("cname").getAsString();
+
+        remoteSdp.receive(localId, kind, rtpParameters,cname,id);
+//
+        var offer = remoteSdp.getSdp();
+
+        Log.i(TAG, offer);
+//
+        CompletableFuture<Void> futureSetRemote = new CompletableFuture<>();
+//
+        pc.setRemoteDescription(new Dugon.SDPObserverForRtpCaps(){
+            @Override
+            public void onSetSuccess() {
+                futureSetRemote.complete(null);
+            }
+
+            @Override
+            public void onSetFailure(String error) {
+                futureSetRemote.completeExceptionally(new Exception(error));
+            }
+        }, new SessionDescription(SessionDescription.Type.OFFER,offer));
+
+        try {
+            futureSetRemote.get();
+            Log.i(TAG,"setRemoteDescription ok");
+
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+        MediaConstraints sdpMediaConstraints = new MediaConstraints();
+
+        CompletableFuture<SessionDescription> futureDesc = new CompletableFuture<>();
+
+        pc.createAnswer(new Dugon.SDPObserverForRtpCaps() {
+            @Override
+            public void onCreateSuccess(SessionDescription desc) {
+                Log.i(TAG,"createAnswer ok");
+
+                futureDesc.complete(desc);
+            }
+
+            @Override
+            public void onCreateFailure(String error) {
+                futureDesc.completeExceptionally(new Exception(error));
+            }
+        }, sdpMediaConstraints);
+
+        try {
+            var answer = futureDesc.get();
+            Log.d(TAG, answer.description);
+            Log.d(TAG, localId);
+
+
+            var localSdpObj = Parser.parse(answer.description);
+
+            // TODO: 2025/3/3
+            // May need to modify codec parameters in the answer based on codec
+            // parameters in the offer.
+
+            //
+            //            var media = localSdpObj.getAsJsonArray("media");
+            //            JsonObject m_select;
+            //            for (JsonElement m : media) {
+            //                JsonObject m_n = m.getAsJsonObject();
+            //                if (Objects.equals(m_n.get("mid").getAsString(), localId)){
+            //                    m_select = m_n;
+            //                    Log.i(TAG, "selected:"+localId);
+            //                }
+            //            }
+            // https://github.com/versatica/libmediasoupclient/blob/v3/src/Handler.cpp#L679
+            //Sdp::Utils::applyCodecParameters(*rtpParameters, answerMediaObject);
+
+            if(!ready){
+                SetupTransport("", localSdpObj);
+            }
+
+            Log.d(TAG, "ready!!");
+
+            CompletableFuture<Void> futureDesc2 = new CompletableFuture<>();
+
+            pc.setLocalDescription(new Dugon.SDPObserverForRtpCaps() {
+                @Override
+                public void onSetSuccess() {
+                    Log.i(TAG,"setLocalDescription ok");
+                    futureDesc2.complete(null);
+                }
+
+                @Override
+                public void onSetFailure(String error) {
+                    Log.i(TAG,"setLocalDescription "+error);
+                    futureDesc2.completeExceptionally(new Exception(error));
+                }
+            }, answer);
+
+            futureDesc2.get();
+
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+}

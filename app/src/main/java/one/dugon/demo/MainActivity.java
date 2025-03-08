@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 
 import one.dugon.demo.sdk.Dugon;
 import one.dugon.demo.sdk.LocalVideoSource;
+import one.dugon.demo.sdk.RecvTransport;
 import one.dugon.demo.sdk.protoo.ProtooSocket;
 import one.dugon.demo.sdk.SendTransport;
 
@@ -42,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private static SendTransport sender;
-
+    private static RecvTransport recvTransport;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,6 +104,15 @@ public class MainActivity extends AppCompatActivity {
                 var requestMethod = requestData.get("method").getAsString();
                 if (Objects.equals(requestMethod, "newConsumer")) {
                     Log.d(TAG,"newConsumer");
+                    var id = requestData.get("id").getAsInt();
+                    var data = requestData.get("data").getAsJsonObject();
+                    var kind = data.get("kind").getAsString();
+                    var receiverId = data.get("id").getAsString();
+                    var rtpParameters= data.get("rtpParameters").getAsJsonObject();
+
+                    recvTransport.receive(receiverId,kind,rtpParameters);
+                    socket.response(id);
+
                 }
             };
             var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
@@ -116,14 +126,16 @@ public class MainActivity extends AppCompatActivity {
 
 
             // for sender
-            JsonObject senderCreateData = new JsonObject();
-            senderCreateData.addProperty("consuming", false);
-            senderCreateData.addProperty("forceTcp", false);
-            senderCreateData.addProperty("producing", true);
+//            JsonObject senderCreateData = new JsonObject();
+//            senderCreateData.addProperty("consuming", false);
+//            senderCreateData.addProperty("forceTcp", false);
+//            senderCreateData.addProperty("producing", true);
+//
+//            var r3 = socket.request("createWebRtcTransport", senderCreateData);
+//            JsonObject rr3 = r3.get();
+//            Log.d(TAG, rr3.toString());
 
-            var r3 = socket.request("createWebRtcTransport", senderCreateData);
-            JsonObject rr3 = r3.get();
-            Log.d(TAG, rr3.toString());
+
             // for receiver
             JsonObject receiverCreateData = new JsonObject();
             receiverCreateData.addProperty("consuming", true);
@@ -131,7 +143,30 @@ public class MainActivity extends AppCompatActivity {
             receiverCreateData.addProperty("producing", false);
 
             var receiverResponse = socket.request("createWebRtcTransport", receiverCreateData);
-            receiverResponse.get();
+            JsonObject receiverResponseJson = receiverResponse.get();
+            // recvTransport
+            String recvId = receiverResponseJson.get("id").getAsString();
+            JsonObject iceParameters2 = receiverResponseJson.getAsJsonObject("iceParameters");
+            JsonArray iceCandidates2 = receiverResponseJson.getAsJsonArray("iceCandidates");
+            JsonObject dtlsParameters2 = receiverResponseJson.getAsJsonObject("dtlsParameters");
+
+            recvTransport = Dugon.createRecvTransport(recvId,iceParameters2,iceCandidates2,dtlsParameters2);
+            recvTransport.onConnect = (JsonObject dtls)->{
+                Log.d(TAG,"recvTransport dtls:"+dtls.toString());
+                var connectData = new JsonObject();
+                connectData.addProperty("transportId",recvId);
+                connectData.add("dtlsParameters",dtls);
+                var r4 = socket.request("connectWebRtcTransport", connectData);
+                try {
+                    JsonObject rr4 = r4.get();
+                    Log.d(TAG,"rr4 ok");
+                } catch (Exception e) {
+                    Log.d(TAG,"rr4 " + e.toString());
+
+                    throw new RuntimeException(e);
+                }
+            };
+
 
             // join
             JsonObject joinData = new JsonObject();
@@ -152,47 +187,48 @@ public class MainActivity extends AppCompatActivity {
             r2.get();
 
             // create sender
-            String sendId = rr3.get("id").getAsString();
-            JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
-            JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
-            JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
+//            String sendId = rr3.get("id").getAsString();
+//            JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
+//            JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
+//            JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
+//
+//            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+//            List<RtpParameters.Encoding> encodings = new ArrayList<>();
+//
+//            sender.onConnect = (JsonObject dtls)->{
+//                Log.d(TAG,"dtls:"+dtls.toString());
+//                var connectData = new JsonObject();
+//                connectData.addProperty("transportId",sendId);
+//                connectData.add("dtlsParameters",dtls);
+//                var r4 = socket.request("connectWebRtcTransport", connectData);
+//                try {
+//                    JsonObject rr4 = r4.get();
+//
+//                } catch (ExecutionException e) {
+//                    throw new RuntimeException(e);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//
+//            };
+//
+//            sender.onProduce = (JsonObject pData)->{
+//                pData.addProperty("transportId",sendId);
+//                var r4 = socket.request("produce", pData);
+//                try {
+//                    JsonObject rr4 = r4.get();
+//                    return rr4.get("id").getAsString();
+//
+//                } catch (ExecutionException e) {
+//                    throw new RuntimeException(e);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                } finally {
+//                    return "";
+//                }
+//            };
+//            sender.send(localVideoSource.track, encodings);
 
-            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
-            List<RtpParameters.Encoding> encodings = new ArrayList<>();
-
-            sender.onConnect = (JsonObject dtls)->{
-                Log.d(TAG,"dtls:"+dtls.toString());
-                var connectData = new JsonObject();
-                connectData.addProperty("transportId",sendId);
-                connectData.add("dtlsParameters",dtls);
-                var r4 = socket.request("connectWebRtcTransport", connectData);
-                try {
-                    JsonObject rr4 = r4.get();
-
-                } catch (ExecutionException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-
-            };
-
-            sender.onProduce = (JsonObject pData)->{
-                pData.addProperty("transportId",sendId);
-                var r4 = socket.request("produce", pData);
-                try {
-                    JsonObject rr4 = r4.get();
-                    return rr4.get("id").getAsString();
-
-                } catch (ExecutionException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    return "";
-                }
-            };
-            sender.send(localVideoSource.track, encodings);
 
         } catch (ExecutionException e) {
             throw new RuntimeException(e);

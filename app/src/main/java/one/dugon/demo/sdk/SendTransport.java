@@ -32,7 +32,7 @@ public class SendTransport implements PeerConnection.Observer {
 //
 //    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 //
-    private static final String TAG = "Transport";
+    private static final String TAG = "SendTransport";
     //
 //    private final Context appContext;
 //    private final EglBase rootEglBase;

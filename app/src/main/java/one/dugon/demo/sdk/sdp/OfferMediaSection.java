@@ -41,7 +41,7 @@ public class OfferMediaSection extends MediaSection {
                 JsonObject codec = codecElem.getAsJsonObject();
                 JsonObject rtp = new JsonObject();
                 rtp.add("payload", codec.get("payloadType"));
-                rtp.add("codec", codec.get("codec"));
+                rtp.addProperty("codec", Utils.getCodecName(codec));
                 rtp.add("rate", codec.get("clockRate"));
                 if (codec.has("channels")) {
                     int channels = codec.get("channels").getAsInt();

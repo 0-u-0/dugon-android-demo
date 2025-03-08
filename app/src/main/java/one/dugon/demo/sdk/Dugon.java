@@ -297,7 +297,7 @@ public class Dugon {
         renderer.init(rootEglBase.getEglBaseContext(), null);
     }
 
-    // TODO: 2025/3/1 remove??? 
+    // TODO: 2025/3/1 remove???
     public static void initTransport(SendTransport sendTransport) {
 
         executor.execute(() -> {
@@ -451,4 +451,21 @@ public class Dugon {
         return t;
     }
 
+    public static RecvTransport createRecvTransport(
+            String id,
+            JsonObject iceParameters,
+            JsonArray iceCandidates,
+            JsonObject dtlsParameters
+    ) {
+        var t = new RecvTransport(id,iceParameters,iceCandidates,dtlsParameters);
+        //
+        List<PeerConnection.IceServer> iceServers = new ArrayList<>();
+
+        PeerConnection.RTCConfiguration rtcConfig =
+                new PeerConnection.RTCConfiguration(iceServers);
+
+        PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, t);
+        t.start(peerConnection);
+        return t;
+    }
 }

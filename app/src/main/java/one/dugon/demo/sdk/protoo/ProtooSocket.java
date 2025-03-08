@@ -109,7 +109,7 @@ public class ProtooSocket{
                 @Override
                 public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
 //        super.onMessage(webSocket, text);
-                    Log.d("W",text);
+                    Log.d(TAG,text);
                     JsonObject jsonObject = gson.fromJson(text, JsonObject.class);
                     if(jsonObject.has("response")){
                         ProtooResponse response = gson.fromJson(jsonObject, ProtooResponse.class);
@@ -167,15 +167,51 @@ public class ProtooSocket{
         CompletableFuture<JsonObject> future = new CompletableFuture<>();
         pendingRequests.put(id, future);
 
-        String message = gson.toJson(requestJson);
+        executor.execute(()-> {
+            String message = gson.toJson(requestJson);
 
-        Log.d("W",message);
+            Log.d(TAG,message);
 
-        send(message);
+            send(message);
+        });
+
 
         return future;
     }
 
+    public void request2(String method, JsonObject data) {
+        int id = new Random().nextInt(Integer.MAX_VALUE);
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("request", true);
+        requestJson.addProperty("id", id);
+        requestJson.addProperty("method", method);
+        requestJson.add("data", data);
+
+
+        executor.execute(()-> {
+            String message = gson.toJson(requestJson);
+
+            Log.d(TAG,message);
+
+            send(message);
+        });
+
+    }
+
+    public void response(int id) {
+
+        JsonObject responseJson = new JsonObject();
+        responseJson.addProperty("id", id);
+        responseJson.addProperty("response",true);
+        responseJson.addProperty("ok",true);
+        responseJson.add("data", new JsonObject());
+
+        String message = gson.toJson(responseJson);
+
+        Log.d(TAG,message);
+
+        send(message);
+    }
 
     public void send(String message) {
         if (webSocket != null) {
