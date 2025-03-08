@@ -23,6 +23,12 @@ public class RecvTransport extends Transport{
     }
 
     public void receive(String id, String kind, JsonObject rtpParameters){
+        executor.execute(()->{
+            receiveInternal(id, kind, rtpParameters);
+        });
+    }
+
+    private void receiveInternal(String id, String kind, JsonObject rtpParameters){
         // TODO: 2025/3/2 maybe get mid from mapMidTransceiver
         // https://github.com/versatica/libmediasoupclient/blob/v3/src/Handler.cpp#L652C35-L652C52
         String localId = rtpParameters.get("mid").getAsString();
@@ -131,7 +137,5 @@ public class RecvTransport extends Transport{
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
-
     }
 }

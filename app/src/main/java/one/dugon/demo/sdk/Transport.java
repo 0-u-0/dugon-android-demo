@@ -13,6 +13,7 @@ import org.webrtc.MediaStream;
 import org.webrtc.PeerConnection;
 import org.webrtc.RtpReceiver;
 
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import one.dugon.demo.sdk.sdp.RemoteSdp;
@@ -30,6 +31,7 @@ public class Transport implements PeerConnection.Observer{
     public PeerConnection pc;
 
     public boolean ready = false;
+    public ExecutorService executor;
 
 
     public Transport(String id,
@@ -40,8 +42,9 @@ public class Transport implements PeerConnection.Observer{
         this.remoteSdp = new RemoteSdp(iceParameters, iceCandidates, dtlsParameters, null);
     }
 
-    public void start(PeerConnection peerConnection) {
+    public void start(PeerConnection peerConnection, ExecutorService executor) {
         pc = peerConnection;
+        this.executor = executor;
     }
 
     public void SetupTransport(String localDtlsRole, JsonObject localSdpObject) {
