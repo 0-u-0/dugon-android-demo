@@ -45,7 +45,7 @@ public class Dugon {
 
     public static final String VIDEO_TRACK_ID = "ARDAMSv0";
 
-    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+    public static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private static Context appContext;
 

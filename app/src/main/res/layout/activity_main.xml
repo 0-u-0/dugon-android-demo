@@ -18,8 +18,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:columnCount="3"
-        android:padding="16dp"
-        android:layout_gravity="center"/>
+        android:rowCount="3"
+        android:padding="16dp">
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/remote_video_view"
+            android:layout_width="0dp"
+            android:layout_height="240dp"
+            android:layout_rowWeight="1"
+            android:layout_columnWeight="1"
+            android:layout_margin="2dp"/>
+
+    </GridLayout>
 
 </FrameLayout>
 

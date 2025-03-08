@@ -7,11 +7,16 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import org.webrtc.MediaConstraints;
+import org.webrtc.RtpTransceiver;
 import org.webrtc.SessionDescription;
+import org.webrtc.VideoSource;
+import org.webrtc.VideoTrack;
 
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import one.dugon.demo.sdk.sdp.Parser;
 
@@ -22,13 +27,21 @@ public class RecvTransport extends Transport{
         super(id, iceParameters, iceCandidates, dtlsParameters);
     }
 
-    public void receive(String id, String kind, JsonObject rtpParameters){
-        executor.execute(()->{
-            receiveInternal(id, kind, rtpParameters);
-        });
+    public RtpTransceiver receive(String id, String kind, JsonObject rtpParameters){
+
+        Callable<RtpTransceiver> task = () -> receiveInternal(id, kind, rtpParameters);
+
+        Future<RtpTransceiver> future = executor.submit(task);
+
+        try {
+            return future.get();
+        } catch (Exception e) {
+//            e.printStackTrace();
+        }
+        return null;
     }
 
-    private void receiveInternal(String id, String kind, JsonObject rtpParameters){
+    private RtpTransceiver receiveInternal(String id, String kind, JsonObject rtpParameters){
         // TODO: 2025/3/2 maybe get mid from mapMidTransceiver
         // https://github.com/versatica/libmediasoupclient/blob/v3/src/Handler.cpp#L652C35-L652C52
         String localId = rtpParameters.get("mid").getAsString();
@@ -132,6 +145,15 @@ public class RecvTransport extends Transport{
 
             futureDesc2.get();
 
+            var transceivers = pc.getTransceivers();
+            RtpTransceiver rtpTransceiver = null;
+            for (var t : transceivers){
+                if(localId.equals(t.getMid())){
+                    rtpTransceiver = t;
+                }
+            }
+
+            return rtpTransceiver;
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {

@@ -16,6 +16,7 @@ import com.google.gson.JsonObject;
 import org.webrtc.RendererCommon;
 import org.webrtc.RtpParameters;
 import org.webrtc.SurfaceViewRenderer;
+import org.webrtc.VideoTrack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,8 @@ public class MainActivity extends AppCompatActivity {
 
     private SendTransport sendTransport;
     private SurfaceViewRenderer fullscreenRenderer;
+    private SurfaceViewRenderer remoteRenderer;
+
     private LocalVideoSource localVideoSource;
     private ProtooSocket socket;
 
@@ -75,7 +78,15 @@ public class MainActivity extends AppCompatActivity {
         fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
         fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
 
+        remoteRenderer = findViewById(R.id.remote_video_view);
+        remoteRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+
+        remoteRenderer.setZOrderMediaOverlay(true);
+        remoteRenderer.setEnableHardwareScaler(true /* enabled */);
+
         Dugon.initView(fullscreenRenderer);
+        Dugon.initView(remoteRenderer);
+
         localVideoSource.play(fullscreenRenderer);
 
         soupTest();
@@ -110,13 +121,24 @@ public class MainActivity extends AppCompatActivity {
                     var receiverId = data.get("id").getAsString();
                     var rtpParameters= data.get("rtpParameters").getAsJsonObject();
 
-                    recvTransport.receive(receiverId,kind,rtpParameters);
-                    socket.response(id);
+                    Dugon.executor.execute(()->{
+                        var transceiver = recvTransport.receive(receiverId,kind,rtpParameters);
+                        if(kind.equals("video")){
+                            Log.d(TAG,"video!");
+                            var track = transceiver.getReceiver().track();
+                            var videotrack =  (VideoTrack)track;
+                            videotrack.setEnabled(true);
+                            videotrack.addSink(remoteRenderer);
+                        }
+                        socket.response(id);
+                    });
+
+
 
                 }
             };
-            var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
-//                var f = socket.connect("ws://192.168.82.107:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+//            var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
+                var f = socket.connect("ws://192.168.1.103:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
             f.get();
             var r1 = socket.request("getRouterRtpCapabilities");
             JsonObject rr1 = r1.get();
