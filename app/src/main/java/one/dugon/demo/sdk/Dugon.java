@@ -61,7 +61,6 @@ public class Dugon {
         // TODO: 2024/9/30 log level
         executor.execute(() -> {
 
-
 //            Log.d(TAG, "Initialize WebRTC. Field trials: " + fieldTrials);
             PeerConnectionFactory.initialize(
                     PeerConnectionFactory.InitializationOptions.builder(appContext)

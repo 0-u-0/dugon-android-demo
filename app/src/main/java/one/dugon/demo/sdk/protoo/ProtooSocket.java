@@ -159,7 +159,6 @@ public class ProtooSocket{
 
     }
 
-
     public void response(int id) {
 
         JsonObject responseJson = new JsonObject();
@@ -198,84 +197,5 @@ public class ProtooSocket{
             webSocket.cancel();
         }
     }
-//
-//    @Override
-//    public void onOpen(@NonNull WebSocket webSocket, @NonNull Response response) {
-////        super.onOpen(webSocket, response);
-//        Log.d(TAG,"onOpen");
-//
-//        executor.execute(()-> {
-//            try {
-//                Future<JsonObject> r1 = request("getRouterRtpCapabilities", new JsonObject());
-//                JsonObject rr1 = r1.get();
-//                Log.d(TAG,"ok1");
-//
-////            JsonObject joinData = new JsonObject();
-////            JsonObject rtpCapabilitiesJson = JsonParser.parseString(rtpCapabilities).getAsJsonObject();
-////            JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
-////            JsonObject device = new JsonObject();
-////            device.addProperty("flag", "chrome");
-////            device.addProperty("name", "Chrome");
-////            device.addProperty("version", "129.0.0.0");
-//
-////            joinData.add("device", device);
-////            joinData.add("rtpCapabilities", rtpCapabilitiesJson);
-////            joinData.add("sctpCapabilities", sctpCapabilitiesJson);
-////            joinData.addProperty("displayName", "gg");
-//
-////            Future<JsonObject> r2 = request("join", joinData);
-//
-////
-//            } catch (ExecutionException | InterruptedException e) {
-//                e.printStackTrace();
-////            throw new RuntimeException(e);
-//            }
-//        });
-//
-//    }
-//
-//    @Override
-//    public void onMessage(@NonNull WebSocket webSocket, @NonNull ByteString bytes) {
-////        super.onMessage(webSocket, bytes);
-//        Log.d("W","onMessage:");
-//
-//    }
-//
-//    @Override
-//    public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
-////        super.onMessage(webSocket, text);
-//        Log.d("W",text);
-//        JsonObject jsonObject = gson.fromJson(text, JsonObject.class);
-//        if(jsonObject.has("response")){
-//            ProtooResponse response = gson.fromJson(jsonObject, ProtooResponse.class);
-//            var future = pendingRequests.get(response.id);
-//            future.complete(response.data);
-////            Log.d(TAG,response.toString());
-//        } else if(jsonObject.has("notification")){
-//
-//        }
-//
-//    }
-//
-//
-//    @Override
-//    public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
-////        super.onFailure(webSocket, t, response);
-//        Log.d("W","onFailure:"+t.toString());
-//
-//    }
-//
-//    @Override
-//    public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
-////        super.onClosing(webSocket, code, reason);
-//        Log.d("W","onClosing:");
-//
-//    }
-//
-//    @Override
-//    public void onClosed(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
-////        super.onClosed(webSocket, code, reason);
-//        Log.d("W","onClosed:");
-//
-//    }
+
 }

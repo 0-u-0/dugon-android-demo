@@ -43,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
-
     private static SendTransport sendTransport;
     private static RecvTransport recvTransport;
 
@@ -133,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
             var getRouterRtpCapabilitiesResponse = socket.request("getRouterRtpCapabilities");
             //-----
             Dugon.load(getRouterRtpCapabilitiesResponse);
-
 
             // for sender
             JsonObject senderCreateData = new JsonObject();
