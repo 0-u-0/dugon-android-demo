@@ -62,15 +62,6 @@ public class MainActivity extends AppCompatActivity {
 //            openCamera();
         }
 
-//        Dugon.initialize(getApplication());
-//        Dugon.getRtpCapabilities();
-//
-//        localVideoSource = Dugon.createVideoSource();
-//        fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
-//        fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
-//
-//        Dugon.initView(fullscreenRenderer);
-//        localVideoSource.play(fullscreenRenderer);
         Dugon.initialize(getApplication());
         //
         localVideoSource = Dugon.createVideoSource();
