@@ -439,7 +439,7 @@ public class Dugon {
                 new PeerConnection.RTCConfiguration(iceServers);
 
         PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, t);
-        t.start(peerConnection, executor);
+        t.start(peerConnection);
         return t;
     }
 }

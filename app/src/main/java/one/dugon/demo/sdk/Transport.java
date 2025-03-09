@@ -43,9 +43,8 @@ public class Transport implements PeerConnection.Observer{
         this.remoteSdp = new RemoteSdp(iceParameters, iceCandidates, dtlsParameters, null);
     }
 
-    public void start(PeerConnection peerConnection, ExecutorService executor) {
+    public void start(PeerConnection peerConnection) {
         pc = peerConnection;
-//        this.executor = executor;
     }
 
     public void SetupTransport(String localDtlsRole, JsonObject localSdpObject) {
