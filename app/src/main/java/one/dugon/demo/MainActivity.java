@@ -35,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    private SendTransport sendTransport;
     private SurfaceViewRenderer fullscreenRenderer;
     private SurfaceViewRenderer remoteRenderer;
 
@@ -45,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
 
-    private static SendTransport sender;
+    private static SendTransport sendTransport;
     private static RecvTransport recvTransport;
 
     @Override
@@ -208,10 +207,10 @@ public class MainActivity extends AppCompatActivity {
             JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
             JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
 
-            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+            sendTransport = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
             List<RtpParameters.Encoding> encodings = new ArrayList<>();
 
-            sender.onConnect = (JsonObject dtls)->{
+            sendTransport.onConnect = (JsonObject dtls)->{
                 Log.d(TAG,"dtls:"+dtls.toString());
                 var connectData = new JsonObject();
                 connectData.addProperty("transportId",sendId);
@@ -220,13 +219,13 @@ public class MainActivity extends AppCompatActivity {
 
             };
 
-            sender.onProduce = (JsonObject pData)->{
+            sendTransport.onProduce = (JsonObject pData)->{
                 pData.addProperty("transportId",sendId);
                 var produceResponse = socket.request("produce", pData);
                 return produceResponse.get("id").getAsString();
 
             };
-            sender.send(localVideoSource.track, encodings);
+            sendTransport.send(localVideoSource.track, encodings);
 
 
         } catch (ExecutionException e) {
