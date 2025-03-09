@@ -296,31 +296,6 @@ public class Dugon {
         renderer.init(rootEglBase.getEglBaseContext(), null);
     }
 
-    // TODO: 2025/3/1 remove???
-    public static void initTransport(SendTransport sendTransport) {
-
-        executor.execute(() -> {
-            List<PeerConnection.IceServer> iceServers = new ArrayList<>();
-
-            PeerConnection.RTCConfiguration rtcConfig =
-                    new PeerConnection.RTCConfiguration(iceServers);
-            // TCP candidates are only useful when connecting to a server that supports
-            // ICE-TCP.
-            rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
-            rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
-            rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
-            rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
-            // Use ECDSA encryption.
-            rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
-            rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
-
-            assert factory != null;
-            PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, sendTransport);
-            sendTransport.start(peerConnection);
-        });
-
-
-    }
 
     static class PCObserverForRtpCaps implements PeerConnection.Observer {
         @Override

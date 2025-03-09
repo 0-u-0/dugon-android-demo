@@ -96,7 +96,6 @@ public class ProtooSocket{
 
                 }
 
-
                 @Override
                 public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
 //        super.onFailure(webSocket, t, response);
