@@ -137,8 +137,8 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             };
-//            var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "iwo37aqg", "peerId", "abc"));
-                var f = socket.connect("ws://192.168.1.103:4443", Map.of("roomId", "vm7khrqj", "peerId", "abc"));
+            var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "dev", "peerId", "abc"));
+//                var f = socket.connect("ws://192.168.1.103:4443", Map.of("roomId", "dev", "peerId", "abc"));
             f.get();
             var r1 = socket.request("getRouterRtpCapabilities");
             JsonObject rr1 = r1.get();
