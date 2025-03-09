@@ -140,22 +140,19 @@ public class MainActivity extends AppCompatActivity {
             var f = socket.connect("ws://198.18.0.1:4443", Map.of("roomId", "dev", "peerId", "abc"));
 //                var f = socket.connect("ws://192.168.1.103:4443", Map.of("roomId", "dev", "peerId", "abc"));
             f.get();
-            var r1 = socket.request("getRouterRtpCapabilities");
-            JsonObject rr1 = r1.get();
-
+            var getRouterRtpCapabilitiesResponse = socket.request("getRouterRtpCapabilities");
             //-----
-            Dugon.load(rr1);
+            Dugon.load(getRouterRtpCapabilitiesResponse);
 
 
             // for sender
-//            JsonObject senderCreateData = new JsonObject();
-//            senderCreateData.addProperty("consuming", false);
-//            senderCreateData.addProperty("forceTcp", false);
-//            senderCreateData.addProperty("producing", true);
-//
-//            var r3 = socket.request("createWebRtcTransport", senderCreateData);
-//            JsonObject rr3 = r3.get();
-//            Log.d(TAG, rr3.toString());
+            JsonObject senderCreateData = new JsonObject();
+            senderCreateData.addProperty("consuming", false);
+            senderCreateData.addProperty("forceTcp", false);
+            senderCreateData.addProperty("producing", true);
+
+            var rr3 = socket.request("createWebRtcTransport", senderCreateData);
+            Log.d(TAG, rr3.toString());
 
 
             // for receiver
@@ -164,8 +161,7 @@ public class MainActivity extends AppCompatActivity {
             receiverCreateData.addProperty("forceTcp", false);
             receiverCreateData.addProperty("producing", false);
 
-            var receiverResponse = socket.request("createWebRtcTransport", receiverCreateData);
-            JsonObject receiverResponseJson = receiverResponse.get();
+            JsonObject receiverResponseJson = socket.request("createWebRtcTransport", receiverCreateData);
             // recvTransport
             String recvId = receiverResponseJson.get("id").getAsString();
             JsonObject iceParameters2 = receiverResponseJson.getAsJsonObject("iceParameters");
@@ -178,9 +174,8 @@ public class MainActivity extends AppCompatActivity {
                 var connectData = new JsonObject();
                 connectData.addProperty("transportId",recvId);
                 connectData.add("dtlsParameters",dtls);
-                var r4 = socket.request("connectWebRtcTransport", connectData);
+                var rr4 = socket.request("connectWebRtcTransport", connectData);
                 try {
-                    JsonObject rr4 = r4.get();
                     Log.d(TAG,"rr4 ok");
                 } catch (Exception e) {
                     Log.d(TAG,"rr4 " + e.toString());
@@ -206,50 +201,32 @@ public class MainActivity extends AppCompatActivity {
             joinData.addProperty("displayName", "gg");
 
             var r2 = socket.request("join", joinData);
-            r2.get();
 
             // create sender
-//            String sendId = rr3.get("id").getAsString();
-//            JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
-//            JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
-//            JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
-//
-//            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
-//            List<RtpParameters.Encoding> encodings = new ArrayList<>();
-//
-//            sender.onConnect = (JsonObject dtls)->{
-//                Log.d(TAG,"dtls:"+dtls.toString());
-//                var connectData = new JsonObject();
-//                connectData.addProperty("transportId",sendId);
-//                connectData.add("dtlsParameters",dtls);
-//                var r4 = socket.request("connectWebRtcTransport", connectData);
-//                try {
-//                    JsonObject rr4 = r4.get();
-//
-//                } catch (ExecutionException e) {
-//                    throw new RuntimeException(e);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
-//
-//            };
-//
-//            sender.onProduce = (JsonObject pData)->{
-//                pData.addProperty("transportId",sendId);
-//                var r4 = socket.request("produce", pData);
-//                try {
-//                    JsonObject rr4 = r4.get();
-//                    return rr4.get("id").getAsString();
-//
-//                } catch (ExecutionException e) {
-//                    throw new RuntimeException(e);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                } finally {
-//                    return "";
-//                }
-//            };
-//            sender.send(localVideoSource.track, encodings);
+            String sendId = rr3.get("id").getAsString();
+            JsonObject iceParameters = rr3.getAsJsonObject("iceParameters");
+            JsonArray iceCandidates = rr3.getAsJsonArray("iceCandidates");
+            JsonObject dtlsParameters = rr3.getAsJsonObject("dtlsParameters");
+
+            sender = Dugon.createSendTransport(sendId, iceParameters, iceCandidates, dtlsParameters);
+            List<RtpParameters.Encoding> encodings = new ArrayList<>();
+
+            sender.onConnect = (JsonObject dtls)->{
+                Log.d(TAG,"dtls:"+dtls.toString());
+                var connectData = new JsonObject();
+                connectData.addProperty("transportId",sendId);
+                connectData.add("dtlsParameters",dtls);
+                var r4 = socket.request("connectWebRtcTransport", connectData);
+
+            };
+
+            sender.onProduce = (JsonObject pData)->{
+                pData.addProperty("transportId",sendId);
+                var produceResponse = socket.request("produce", pData);
+                return produceResponse.get("id").getAsString();
+
+            };
+            sender.send(localVideoSource.track, encodings);
 
 
         } catch (ExecutionException e) {

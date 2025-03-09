@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -69,41 +70,12 @@ public class ProtooSocket{
 //        super.onOpen(webSocket, response);
                     Log.d(TAG,"onOpen");
                     futureConnect.complete(null);
-//                    executor.execute(()-> {
-//                        try {
-//                            Future<JsonObject> r1 = request("getRouterRtpCapabilities", new JsonObject());
-//                            JsonObject rr1 = r1.get();
-//                            Log.d(TAG,"ok1");
-
-//            JsonObject joinData = new JsonObject();
-//            JsonObject rtpCapabilitiesJson = JsonParser.parseString(rtpCapabilities).getAsJsonObject();
-//            JsonObject sctpCapabilitiesJson = JsonParser.parseString(sctpCapabilities).getAsJsonObject();
-//            JsonObject device = new JsonObject();
-//            device.addProperty("flag", "chrome");
-//            device.addProperty("name", "Chrome");
-//            device.addProperty("version", "129.0.0.0");
-
-//            joinData.add("device", device);
-//            joinData.add("rtpCapabilities", rtpCapabilitiesJson);
-//            joinData.add("sctpCapabilities", sctpCapabilitiesJson);
-//            joinData.addProperty("displayName", "gg");
-
-//            Future<JsonObject> r2 = request("join", joinData);
-
-//
-//                        } catch (ExecutionException | InterruptedException e) {
-//                            e.printStackTrace();
-////            throw new RuntimeException(e);
-//                        }
-//                    });
-
                 }
 
                 @Override
                 public void onMessage(@NonNull WebSocket webSocket, @NonNull ByteString bytes) {
 //        super.onMessage(webSocket, bytes);
                     Log.d("W","onMessage:");
-
                 }
 
                 @Override
@@ -128,22 +100,21 @@ public class ProtooSocket{
                 @Override
                 public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
 //        super.onFailure(webSocket, t, response);
-                    Log.d("W","onFailure:"+t.toString());
+                    Log.d(TAG,"onFailure:"+t.toString());
                     futureConnect.completeExceptionally(t);
                 }
 
                 @Override
                 public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
 //        super.onClosing(webSocket, code, reason);
-                    Log.d("W","onClosing:");
+                    Log.d(TAG,"onClosing:");
 
                 }
 
                 @Override
                 public void onClosed(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
 //        super.onClosed(webSocket, code, reason);
-                    Log.d("W","onClosed:");
-
+                    Log.d(TAG,"onClosed:");
                 }
             };
             this.webSocket = client.newWebSocket(request, listener);
@@ -152,11 +123,11 @@ public class ProtooSocket{
         return futureConnect;
     }
 
-    public CompletableFuture<JsonObject> request(String method) {
+    public JsonObject request(String method) {
         return request(method,new JsonObject());
     }
 
-    public CompletableFuture<JsonObject> request(String method, JsonObject data) {
+    public JsonObject request(String method, JsonObject data) {
         int id = new Random().nextInt(Integer.MAX_VALUE);
         JsonObject requestJson = new JsonObject();
         requestJson.addProperty("request", true);
@@ -175,26 +146,16 @@ public class ProtooSocket{
             send(message);
         });
 
+        JsonObject response = null;
+        try {
+            response = future.get();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
-        return future;
-    }
-
-    public void request2(String method, JsonObject data) {
-        int id = new Random().nextInt(Integer.MAX_VALUE);
-        JsonObject requestJson = new JsonObject();
-        requestJson.addProperty("request", true);
-        requestJson.addProperty("id", id);
-        requestJson.addProperty("method", method);
-        requestJson.add("data", data);
-
-
-        executor.execute(()-> {
-            String message = gson.toJson(requestJson);
-
-            Log.d(TAG,message);
-
-            send(message);
-        });
+        return response;
 
     }
 
