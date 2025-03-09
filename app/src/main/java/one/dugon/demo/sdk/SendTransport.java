@@ -26,22 +26,14 @@ import one.dugon.demo.sdk.sdp.Parser;
 import one.dugon.demo.sdk.sdp.RemoteSdp;
 import one.dugon.demo.sdk.sdp.Utils;
 
-public class SendTransport implements PeerConnection.Observer {
+public class SendTransport extends Transport {
 
     private static final String TAG = "SendTransport";
 
-    private boolean ready = false;
-    public Consumer<JsonObject> onConnect;
     public Function<JsonObject,String> onProduce;
-
-    @Nullable
-    private PeerConnection pc;
-
-    public RemoteSdp remoteSdp;
 
     public JsonObject sendingRtpParametersByKind;
     public JsonObject sendingRemoteRtpParametersByKind;
-    public String id ;
 
     public SendTransport(String id,
                          JsonObject iceParameters,
@@ -49,10 +41,9 @@ public class SendTransport implements PeerConnection.Observer {
                          JsonObject dtlsParameters,
                          JsonObject sendingRtpParametersByKind,
                          JsonObject sendingRemoteRtpParametersByKind) {
-        this.id = id;
+        super(id,iceParameters,iceCandidates,dtlsParameters);
         this.sendingRtpParametersByKind = sendingRtpParametersByKind.deepCopy();
         this.sendingRemoteRtpParametersByKind = sendingRemoteRtpParametersByKind.deepCopy();
-        remoteSdp = new RemoteSdp(iceParameters, iceCandidates, dtlsParameters, null);
     }
 
     public void start(PeerConnection peerConnection) {
@@ -164,76 +155,4 @@ public class SendTransport implements PeerConnection.Observer {
         var  producerId = onProduce.apply(produceData);
         Log.d(TAG,"pid:"+producerId);
     }
-
-
-    public void SetupTransport(String localDtlsRole, JsonObject localSdpObject) {
-
-
-        // Get our local DTLS parameters.
-        var dtlsParameters = Utils.extractDtlsParameters(localSdpObject);
-        dtlsParameters.addProperty("role","client");
-        onConnect.accept(dtlsParameters);
-        // Set our DTLS role.
-//        dtlsParameters["role"] = localDtlsRole;
-
-        // Update the remote DTLS role in the SDP.
-//        var remoteDtlsRole = localDtlsRole.equals("client") ? "server" : "client";
-//        this->remoteSdp->UpdateDtlsRole(remoteDtlsRole);
-        remoteSdp.updateDtlsRole("server");
-
-        // May throw.
-//        this->privateListener->OnConnect(dtlsParameters);
-        ready = true;
-    }
-
-    @Override
-    public void onSignalingChange(PeerConnection.SignalingState signalingState) {
-
-    }
-
-    @Override
-    public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-        Log.d(TAG,"iceState:"+iceConnectionState.name());
-    }
-
-    @Override
-    public void onIceConnectionReceivingChange(boolean b) {
-
-    }
-
-    @Override
-    public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {
-
-    }
-
-    @Override
-    public void onIceCandidate(IceCandidate iceCandidate) {
-
-    }
-
-    @Override
-    public void onIceCandidatesRemoved(IceCandidate[] iceCandidates) {
-
-    }
-
-    @Override
-    public void onAddStream(MediaStream mediaStream) {
-
-    }
-
-    @Override
-    public void onRemoveStream(MediaStream mediaStream) {
-
-    }
-
-    @Override
-    public void onDataChannel(DataChannel dataChannel) {
-
-    }
-
-    @Override
-    public void onRenegotiationNeeded() {
-
-    }
-
 }
