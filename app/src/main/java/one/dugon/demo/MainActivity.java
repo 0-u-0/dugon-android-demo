@@ -1,9 +1,14 @@
 package one.dugon.demo;
 
+import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.Manifest;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.GridLayout;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,12 +36,12 @@ import one.dugon.demo.sdk.protoo.ProtooSocket;
 import one.dugon.demo.sdk.SendTransport;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
 
     private SurfaceViewRenderer fullscreenRenderer;
-    private SurfaceViewRenderer remoteRenderer;
+    private List<SurfaceViewRenderer> remoteRenderers = new ArrayList<>();
 
     private LocalVideoSource localVideoSource;
     private ProtooSocket socket;
@@ -46,10 +51,18 @@ public class MainActivity extends AppCompatActivity {
     private static SendTransport sendTransport;
     private static RecvTransport recvTransport;
 
+    private VideoTrack myVideoTrack;
+
+    public int index = 0;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Button myButton = findViewById(R.id.myButton);
+        myButton.setOnClickListener((v)->{
+            Log.d(TAG,myVideoTrack.enabled()+"");
+        });
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -67,14 +80,14 @@ public class MainActivity extends AppCompatActivity {
         fullscreenRenderer = findViewById(R.id.fullscreen_video_view);
         fullscreenRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
 
-        remoteRenderer = findViewById(R.id.remote_video_view);
-        remoteRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
-
-        remoteRenderer.setZOrderMediaOverlay(true);
-        remoteRenderer.setEnableHardwareScaler(true /* enabled */);
+//        remoteRenderer = findViewById(R.id.remote_video_view);
+//        remoteRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+//
+//        remoteRenderer.setZOrderMediaOverlay(true);
+//        remoteRenderer.setEnableHardwareScaler(true /* enabled */);
 
         Dugon.initView(fullscreenRenderer);
-        Dugon.initView(remoteRenderer);
+//        Dugon.initView(remoteRenderer);
 
         localVideoSource.play(fullscreenRenderer);
 
@@ -95,6 +108,33 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void addRemoteVideoRenderer(VideoTrack videoTrack){
+
+        runOnUiThread(()->{
+            LinearLayout linearLayout = findViewById(R.id.myLinear); // Get existing GridLayout
+
+            var renderer = new SurfaceViewRenderer(this);
+
+            renderer.setId(View.generateViewId());
+            renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL);
+            renderer.setZOrderMediaOverlay(true);
+            renderer.setEnableHardwareScaler(true);
+
+            Dugon.initView(renderer);
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,linearLayout.getHeight() / 3);
+            params.setMargins(0,8,0,0);
+            renderer.setLayoutParams(params);
+
+            linearLayout.addView(renderer);
+
+            videoTrack.addSink(renderer);
+
+            remoteRenderers.add(renderer);
+        });
+
+    }
+
     public void soupTest() {
         socket = new ProtooSocket();
 
@@ -113,11 +153,13 @@ public class MainActivity extends AppCompatActivity {
                     Dugon.executor.execute(()->{
                         var transceiver = recvTransport.receive(receiverId,kind,rtpParameters);
                         if(kind.equals("video")){
-                            Log.d(TAG,"video!");
+                            Log.d(TAG,"video !" + transceiver.getMid());
                             var track = transceiver.getReceiver().track();
                             var videotrack =  (VideoTrack)track;
                             videotrack.setEnabled(true);
-                            videotrack.addSink(remoteRenderer);
+
+                            myVideoTrack = videotrack;
+                            addRemoteVideoRenderer(videotrack);
                         }
                         socket.response(id);
                     });

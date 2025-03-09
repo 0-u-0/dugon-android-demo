@@ -122,4 +122,9 @@ public class Transport implements PeerConnection.Observer{
     public void onAddTrack(RtpReceiver receiver, MediaStream[] mediaStreams) {
         Log.d(TAG,"onAddTrack");
     }
+
+    @Override
+    public void onRemoveTrack(RtpReceiver receiver) {
+        Log.d(TAG,"onRemoveTrack");
+    }
 }

@@ -438,6 +438,8 @@ public class Dugon {
         PeerConnection.RTCConfiguration rtcConfig =
                 new PeerConnection.RTCConfiguration(iceServers);
 
+        rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
+
         PeerConnection peerConnection = factory.createPeerConnection(rtcConfig, t);
         t.start(peerConnection);
         return t;
