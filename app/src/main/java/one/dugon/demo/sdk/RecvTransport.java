@@ -145,15 +145,17 @@ public class RecvTransport extends Transport{
 
             futureDesc2.get();
 
-            var transceivers = pc.getTransceivers();
-            RtpTransceiver rtpTransceiver = null;
-            for (var t : transceivers){
-                if(localId.equals(t.getMid())){
-                    rtpTransceiver = t;
-                }
-            }
-
-            return rtpTransceiver;
+            //https://bugs.chromium.org/p/webrtc/issues/detail?id=10788&q=getTransceivers()&colspec=ID%20Pri%20Stars%20M%20Component%20Status%20Owner%20Summary%20Modified
+//            var transceivers = pc.getTransceivers();
+//            RtpTransceiver rtpTransceiver = null;
+//            for (var t : transceivers){
+//                if(localId.equals(t.getMid())){
+//                    rtpTransceiver = t;
+//                }
+//            }
+//
+//            return rtpTransceiver;
+            return  null;
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {

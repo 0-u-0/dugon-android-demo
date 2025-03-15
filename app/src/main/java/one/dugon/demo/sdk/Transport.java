@@ -10,6 +10,7 @@ import com.google.gson.JsonObject;
 import org.webrtc.DataChannel;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaStream;
+import org.webrtc.MediaStreamTrack;
 import org.webrtc.PeerConnection;
 import org.webrtc.RtpReceiver;
 
@@ -27,6 +28,7 @@ public class Transport implements PeerConnection.Observer{
     public RemoteSdp remoteSdp;
 
     public Consumer<JsonObject> onConnect;
+    public Consumer<MediaStreamTrack> onTrack = null;
 
     @Nullable
     public PeerConnection pc;
@@ -121,6 +123,9 @@ public class Transport implements PeerConnection.Observer{
     @Override
     public void onAddTrack(RtpReceiver receiver, MediaStream[] mediaStreams) {
         Log.d(TAG,"onAddTrack");
+        if(onTrack != null){
+            onTrack.accept(receiver.track());
+        }
     }
 
     @Override

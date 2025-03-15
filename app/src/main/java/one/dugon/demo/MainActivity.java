@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import org.webrtc.MediaStreamTrack;
 import org.webrtc.RendererCommon;
 import org.webrtc.RtpParameters;
 import org.webrtc.SurfaceViewRenderer;
@@ -152,15 +153,15 @@ public class MainActivity extends Activity {
 
                     Dugon.executor.execute(()->{
                         var transceiver = recvTransport.receive(receiverId,kind,rtpParameters);
-                        if(kind.equals("video")){
-                            Log.d(TAG,"video !" + transceiver.getMid());
-                            var track = transceiver.getReceiver().track();
-                            var videotrack =  (VideoTrack)track;
-                            videotrack.setEnabled(true);
-
-                            myVideoTrack = videotrack;
-                            addRemoteVideoRenderer(videotrack);
-                        }
+//                        if(kind.equals("video")){
+//                            Log.d(TAG,"video !" + transceiver.getMid());
+//                            var track = transceiver.getReceiver().track();
+//                            var videotrack =  (VideoTrack)track;
+//                            videotrack.setEnabled(true);
+//
+//                            myVideoTrack = videotrack;
+//                            addRemoteVideoRenderer(videotrack);
+//                        }
                         socket.response(id);
                     });
 
@@ -199,6 +200,16 @@ public class MainActivity extends Activity {
             JsonObject dtlsParameters2 = receiverResponseJson.getAsJsonObject("dtlsParameters");
 
             recvTransport = Dugon.createRecvTransport(recvId,iceParameters2,iceCandidates2,dtlsParameters2);
+            recvTransport.onTrack = (MediaStreamTrack track)->{
+                String kind = track.kind();
+                if(kind.equals("video")){
+                    var videotrack =  (VideoTrack)track;
+                    videotrack.setEnabled(true);
+
+//                    myVideoTrack = videotrack;
+                    addRemoteVideoRenderer(videotrack);
+                }
+            };
             recvTransport.onConnect = (JsonObject dtls)->{
                 Log.d(TAG,"recvTransport dtls:"+dtls.toString());
                 var connectData = new JsonObject();
